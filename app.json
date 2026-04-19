@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "e-PengawalSekolah",
+    "slug": "eps-mobile",
+    "scheme": "epsmobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.anonymous.epsmobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Lokasi diperlukan untuk mengesahkan anda berada dalam kawasan sekolah.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "supportsTablet": true
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.epsmobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8c0a5061-bf17-44d9-9974-c39ea7d4f6b1"
+      }
+    },
+    "owner": "fakhruddin404"
+  }
+}
