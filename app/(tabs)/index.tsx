@@ -1,14 +1,14 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Bell,
-  Cog,
   FileText,
   Play,
   ScanLine,
   Siren,
 } from 'lucide-react-native';
+
+import { DashboardHeader } from '../../components/DashboardHeader';
 
 const MapsDashboard = lazy(() => import('./MapsDashboard'));
 
@@ -26,43 +26,11 @@ export default function HomeMapScreen() {
           <MapsDashboard />
         </Suspense>
 
-        <SafeAreaView className="absolute left-0 right-0 top-0">
-          <View className="flex-row items-center justify-between px-4 pt-2">
-            <View className="flex-row items-center">
-              <Image
-                source={{
-                  uri: 'https://i.pravatar.cc/120?img=12',
-                }}
-                className="h-10 w-10 rounded-full"
-              />
-              <View className="ml-3">
-                <Text className="text-xs font-semibold text-primary">
-                  Hi, WelcomeBack
-                </Text>
-                <Text className="text-base font-extrabold text-slate-900">
-                  John Doe
-                </Text>
-              </View>
-            </View>
-
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                onPress={() => Alert.alert('Notifikasi', 'Coming soon')}
-                className="h-10 w-10 items-center justify-center rounded-full bg-slate-100"
-              >
-                <Bell size={18} color="#0F172A" />
-              </Pressable>
-              <Pressable
-                onPress={() => Alert.alert('Tetapan', 'Coming soon')}
-                className="h-10 w-10 items-center justify-center rounded-full bg-slate-100"
-              >
-                <Cog size={18} color="#0F172A" />
-              </Pressable>
-            </View>
-          </View>
+        <SafeAreaView className="absolute left-0 right-0 top-0 bg-white">
+          <DashboardHeader />
         </SafeAreaView>
 
-        <View className="absolute bottom-28 left-4">
+        <View className="absolute bottom-36 left-4">
           <Fab label="MULA" icon={<Play size={18} color="#0F172A" />} />
           <View className="h-3" />
           <Fab label="IMBAS" icon={<ScanLine size={18} color="#0F172A" />} />

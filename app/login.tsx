@@ -78,30 +78,27 @@ export default function LoginScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 px-6">
         <View className="w-full max-w-md flex-1 self-center">
-          <View className="items-center pt-8">
-            <Image
-              source={require('../assets/images/splash.png')}
-              className="h-32 w-32"
-              resizeMode="contain"
-            />
-            <Text className="mt-3 text-center text-lg font-bold">
-              <Text className="text-navy">e-Pengawal</Text>
-              <Text className="text-primary">Sekolah</Text>
-            </Text>
-          </View>
 
-          <Text className="mt-8 text-center text-2xl font-extrabold text-primary">
+          <Text className="mt-12 text-center text-4xl font-extrabold text-primary">
             SELAMAT DATANG
           </Text>
 
-          <View className="mt-8 w-full">
+          <View className="items-center pt-16">
+            <Image
+              source={require('../assets/images/splash.png')}
+              className="h-64 w-64"
+              resizeMode="contain"
+            />
+          </View>
+
+          <View className="mt-12 w-full">
             <Text className="mb-2 text-sm font-semibold text-slate-700">
-              ID atau Email
+              Email
             </Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="P003"
+              placeholder="email@example.com"
               placeholderTextColor="#94A3B8"
               autoCapitalize="none"
               autoCorrect={false}
@@ -132,9 +129,9 @@ export default function LoginScreen() {
                 }
               >
                 {showPassword ? (
-                  <EyeOff size={20} color="#0F172A" />
-                ) : (
                   <Eye size={20} color="#0F172A" />
+                ) : (
+                  <EyeOff size={20} color="#0F172A" />
                 )}
               </Pressable>
             </View>
