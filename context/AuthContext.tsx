@@ -14,6 +14,7 @@ export type AuthSession = {
   email?: string | null;
   phone?: string | null;
   ic?: string | null;
+  isEmailVerified?: boolean;
 };
 
 type AuthContextValue = {

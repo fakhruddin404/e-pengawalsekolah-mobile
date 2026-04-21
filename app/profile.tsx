@@ -144,6 +144,7 @@ export default function ProfileScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        <View className="h-5" />
         <Pressable
           onPress={async () => {
             if (!session || isUpdating) return;
@@ -179,7 +180,12 @@ export default function ProfileScreen() {
               }
               
             } catch (error: any) {
-              Alert.alert('Ralat', error.message || 'Sesuatu yang tidak kena berlaku.');
+              const msg =
+                error?.response?.data?.message ??
+                error?.response?.data?.error ??
+                error?.message ??
+                'Sesuatu yang tidak kena berlaku.';
+              Alert.alert('Ralat', msg);
             } finally {
               setIsUpdating(false);
             }

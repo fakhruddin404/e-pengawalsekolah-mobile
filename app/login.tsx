@@ -65,10 +65,18 @@ export default function LoginScreen() {
         email: loginData.user?.email ?? null,
         phone: loginData.pengawal?.fld_pgw_noTelefon ?? null,
         ic: loginData.pengawal?.fld_pgw_noIC ?? null,
+        isEmailVerified: loginData.user?.email_verified_at !== null,
       });
-      // Redirect to the sesiRondaan screen
-      setTimeout(() => router.replace('/(tabs)/sesiRondaan'), 0);
-      // if error will running
+      // --- LOGIK SOFT LOGIN BERMULA DI SINI ---
+      if (loginData.user?.email_verified_at === null) {
+        // Jika belum verify, redirect ke skrin Verify Email
+        // (Pastikan anda ganti '/verify-email' dengan laluan fail skrin anda yang sebenar)
+        setTimeout(() => router.replace('/verify-email'), 0); 
+      } else {
+        // Jika dah verify, masuk ke Dashboard macam biasa
+        setTimeout(() => router.replace('/(tabs)/sesiRondaan'), 0);
+      }
+      // ---------------------------------------
     } catch (e: any) {
       const data = e?.response?.data;
       
@@ -106,7 +114,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 px-6">
-        // View for the login form
+        {/* View for the login form */}
         <View className="w-full max-w-md flex-1 self-center">
 
           <Text className="mt-12 text-center text-4xl font-extrabold text-primary">
