@@ -114,29 +114,7 @@ export default function ProfileScreen() {
         />
 
         <View className="h-5" />
-        <View className="flex-row items-end justify-between">
-          <Label text="Email" />
-          <Pressable
-            onPress={async () => {
-              if (!canVerify) return;
-              setSendingVerify(true);
-              try {
-                const res = await postSendEmailVerification(token);
-                Alert.alert('Pengesahan Email', res?.message ?? 'Pautan pengesahan dihantar.');
-              } catch (e: any) {
-                Alert.alert('Ralat', e?.response?.data?.message ?? e?.message ?? 'Gagal hantar pengesahan.');
-              } finally {
-                setSendingVerify(false);
-              }
-            }}
-            disabled={!canVerify}
-            accessibilityRole="button"
-          >
-            <Text className={['text-xs font-extrabold text-primary', !canVerify ? 'opacity-60' : 'opacity-100'].join(' ')}>
-              {sendingVerify ? 'Sending…' : 'Verify'}
-            </Text>
-          </Pressable>
-        </View>
+        <Label text="Email" />
         <Field
           value={email}
           onChangeText={setEmail}
@@ -144,6 +122,7 @@ export default function ProfileScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+        
         <View className="h-5" />
         <Pressable
           onPress={async () => {

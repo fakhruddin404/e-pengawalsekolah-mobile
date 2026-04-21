@@ -71,6 +71,53 @@ export async function postSendEmailVerification(token: string) {
   return res.data as { message?: string };
 }
 
+export const getTitikSemak = async (token: string) => {
+  try {
+    const response = await api.get('titik-semak', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching titik semak:', error);
+    throw error;
+  }
+};
+
+export const postSimpanRondaan = async (
+  token: string, 
+  payload: { path: any[]; peratus: number; durasi: string }
+) => {
+  try {
+    const response = await api.post('simpan-rondaan', payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    // Re-throw with useful backend message (if any)
+    const e: any = error;
+    const msg =
+      e?.response?.data?.message ??
+      e?.response?.data?.error ??
+      (e?.response?.status ? `HTTP ${e.response.status}` : null) ??
+      e?.message ??
+      'Error saving rondaan';
+    console.error('Error saving rondaan:', msg);
+    throw error;
+  }
+};
+
+export const postSOS = async (token: string, location: any) => {
+  try {
+    const response = await api.post('sos', { location }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error sending SOS:', error);
+    throw error;
+  }
+};
+
 export async function postUpdateProfile(token: string, data: { name: string; email: string; phone: string; ic: string }) {
   const candidates = ['update-profile', 'update_profile', 'updateProfile'] as const;
 
