@@ -12,15 +12,15 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="sesiRondaan"
         options={{
           title: 'Papan Pemuka Rondaan',
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="senaraiPelawat"
         options={{
-          title: 'Senarai Pelawat Aktif',
+          title: 'Senarai Pelawat',
         }}
       />
       <Tabs.Screen

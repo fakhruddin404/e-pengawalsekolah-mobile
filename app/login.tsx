@@ -1,37 +1,33 @@
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, Image, Pressable, Text, TextInput, View} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 
+import { useAuth } from '../context/AuthContext';
 import { postLogin } from '../services/api';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { setSession } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  
+  // Check if the email and password are valid and not loading
   const canSubmit = useMemo(
     () => email.trim().length > 0 && password.length > 0 && !loading,
     [email, password, loading]
   );
-
+  // Submit the login form
   async function onSubmit() {
     if (!canSubmit) return;
-
+    
     setLoading(true);
+    // if boleh submit try will running
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== 'granted') {
@@ -41,34 +37,67 @@ export default function LoginScreen() {
         );
         return;
       }
-
+      // Get the current position
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
+      // Create the current position object
       const current = {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       };
-
-      await postLogin({
+      // Post the login data to the API and get the response(masuk dlm loginData)
+      const loginData = await postLogin({
         login: email.trim(),
         password,
         lat: current.latitude,
         long: current.longitude,
       });
 
-      router.replace('/(tabs)');
+      // Get the display name from the login data
+      const displayName =
+        loginData.pengawal?.nama?.trim() || loginData.user?.name?.trim() || '';
+      // Set the session data(masuk dlm setSession)
+      setSession({
+        token: loginData.token,
+        displayName: displayName || 'Pengawal',
+        photoUrl: loginData.pengawal?.photo_url ?? null,
+        email: loginData.user?.email ?? null,
+        phone: loginData.pengawal?.fld_pgw_noTelefon ?? null,
+        ic: loginData.pengawal?.fld_pgw_noIC ?? null,
+      });
+      // Redirect to the sesiRondaan screen
+      setTimeout(() => router.replace('/(tabs)/sesiRondaan'), 0);
+      // if error will running
     } catch (e: any) {
       const data = e?.response?.data;
-      let message: string =
-        data?.message ?? e?.message ?? 'Log masuk gagal. Sila cuba lagi.';
-      if (e?.response?.status === 422 && data?.errors && typeof data.errors === 'object') {
-        const first = Object.values(data.errors).flat()[0];
-        if (typeof first === 'string') {
-          message = first;
+      
+      // Default generic message
+      let message: string = 'Log masuk gagal. Sila cuba lagi.';
+    
+      // 1. Check if it's a Validation Error (Status 422)
+      if (e?.response?.status === 422 && data?.errors) {
+        /**
+         * Laravel sends: 
+         * "errors": { "login": ["Akaun ini bukan pengawal."] }
+         * We want that first string inside the first array.
+         */
+        const errorEntries = Object.values(data.errors); 
+        if (errorEntries.length > 0) {
+          const firstErrorArray = errorEntries[0] as string[];
+          message = firstErrorArray[0]; // Gets: "Akaun ini bukan pengawal."
         }
+      } 
+      // 2. Fallback to Laravel's top-level message if provided
+      else if (data?.message) {
+        message = data.message;
+      } 
+      // 3. Fallback to the Axios/Network error message
+      else if (e?.message) {
+        message = e.message;
       }
-      Alert.alert('Ralat', String(message));
+    
+      Alert.alert('Ralat', message);
     } finally {
       setLoading(false);
     }
@@ -77,6 +106,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 px-6">
+        // View for the login form
         <View className="w-full max-w-md flex-1 self-center">
 
           <Text className="mt-12 text-center text-4xl font-extrabold text-primary">
@@ -149,9 +179,9 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={onSubmit}
-            disabled={!canSubmit}
+          <Pressable // Button for the login
+            onPress={onSubmit} // on press will submit onSubmit function
+            disabled={!canSubmit} // if not can submit will disabled
             className={[
               'mt-10 h-14 w-full items-center justify-center rounded-full bg-primary',
               !canSubmit ? 'opacity-60' : 'opacity-100',

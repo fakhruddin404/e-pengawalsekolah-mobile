@@ -9,15 +9,15 @@ const INACTIVE = '#0F172A';
 const ICON_SIZE = 22;
 
 const TAB_LABELS: Record<string, string> = {
-  index: 'Papan Pemuka Rondaan',
-  profile: 'Senarai Pelawat Aktif',
+  sesiRondaan: 'Papan Pemuka Rondaan',
+  senaraiPelawat: 'Senarai Pelawat',
 };
 
 export function MainTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   const visibleRoutes = state.routes.filter(
-    (route) => route.name === 'index' || route.name === 'profile'
+    (route) => route.name === 'sesiRondaan' || route.name === 'senaraiPelawat'
   );
 
   return (
@@ -82,7 +82,7 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
                   maxWidth: '100%',
                 }}
               >
-                {route.name === 'index' ? (
+                {route.name === 'sesiRondaan' ? (
                   <Home color={ACTIVE_BLUE} size={ICON_SIZE} />
                 ) : (
                   <User color={ACTIVE_BLUE} size={ICON_SIZE} />
@@ -99,7 +99,7 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
                   {label}
                 </Text>
               </View>
-            ) : route.name === 'index' ? (
+            ) : route.name === 'sesiRondaan' ? (
               <Home color={INACTIVE} size={ICON_SIZE} />
             ) : (
               <User color={INACTIVE} size={ICON_SIZE} />
