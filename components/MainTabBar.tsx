@@ -1,11 +1,15 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Home, User } from 'lucide-react-native';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const PILL_BG = '#D1E3FF';
-const ACTIVE_BLUE = '#1F7BFF';
-const INACTIVE = '#0F172A';
+import { AppText } from './AppText';
+import { textVariants } from '../theme/typography';
+import { palette, radii, shadows, spacing } from '../theme/ui';
+
+const PILL_BG = '#E8F1FF';
+const ACTIVE_BLUE = palette.primary;
+const INACTIVE = palette.text;
 const ICON_SIZE = 22;
 
 const TAB_LABELS: Record<string, string> = {
@@ -24,12 +28,15 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
     <View
       style={{
         flexDirection: 'row',
-        backgroundColor: '#ffffff',
-        paddingHorizontal: 16,
-        paddingTop: 10,
-        paddingBottom: Math.max(insets.bottom, 10),
+        backgroundColor: palette.surface,
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        paddingBottom: Math.max(insets.bottom, spacing.sm),
         justifyContent: 'space-around',
         alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: palette.border,
+        ...shadows.floating,
       }}
     >
       {visibleRoutes.map((route) => {
@@ -75,9 +82,9 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
                   flexDirection: 'row',
                   alignItems: 'center',
                   backgroundColor: PILL_BG,
-                  borderRadius: 999,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
+                  borderRadius: radii.pill,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
                   gap: 8,
                   maxWidth: '100%',
                 }}
@@ -87,17 +94,17 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
                 ) : (
                   <User color={ACTIVE_BLUE} size={ICON_SIZE} />
                 )}
-                <Text
+                <AppText
                   numberOfLines={1}
                   style={{
+                    ...textVariants.caption,
                     color: ACTIVE_BLUE,
-                    fontWeight: '700',
-                    fontSize: 11,
+                    fontWeight: '800',
                     flexShrink: 1,
                   }}
                 >
                   {label}
-                </Text>
+                </AppText>
               </View>
             ) : route.name === 'sesiRondaan' ? (
               <Home color={INACTIVE} size={ICON_SIZE} />

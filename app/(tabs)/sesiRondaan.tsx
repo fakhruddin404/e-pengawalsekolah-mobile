@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   FileText,
@@ -15,14 +15,16 @@ import {
 } from 'expo-camera';
 import * as Location from 'expo-location';
 
+import { AppText } from '../../components/AppText';
 import { DashboardHeader } from '../../components/DashboardHeader';
+import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
 import {
   getTitikSemak,
   postSahkanTitik,
   postSimpanRondaan,
   calculatePatrolStats,
-} from '../../services/api';
+} from '../../services';
 
 const MapsDashboard = lazy(() => import('./MapsDashboard'));
 
@@ -287,12 +289,20 @@ export default function HomeMapScreen() {
 
             <SafeAreaView className="absolute left-0 right-0 top-0">
               <View className="px-4 py-3">
-                <Text className="text-center text-base font-extrabold text-white">
+                <AppText
+                  variant="h3"
+                  className="text-center"
+                  style={{ color: '#ffffff' }}
+                >
                   Imbas Kod Qr
-                </Text>
-                <Text className="mt-2 text-center text-xs text-white/80">
+                </AppText>
+                <AppText
+                  variant="caption"
+                  className="mt-2 text-center"
+                  style={{ color: 'rgba(255,255,255,0.8)' }}
+                >
                   Halakan Kod QR Titik Semak Dalam Kotak Yang Disediakan
-                </Text>
+                </AppText>
               </View>
             </SafeAreaView>
 
@@ -302,9 +312,9 @@ export default function HomeMapScreen() {
                   onPress={() => setIsScanning(false)}
                   className="items-center rounded-full bg-white/90 px-4 py-3"
                 >
-                  <Text className="text-sm font-extrabold text-slate-900">
+                  <AppText variant="bodySm" style={{ fontWeight: '800' }}>
                     TUTUP
-                  </Text>
+                  </AppText>
                 </Pressable>
               </View>
             </SafeAreaView>
@@ -319,7 +329,7 @@ export default function HomeMapScreen() {
           {!isRondaanActive ? (
             <Fab 
               label="MULA" 
-              icon={<Play size={18} color="#0F172A" />} 
+              icon={<Play size={18} color={palette.text} />} 
               onPress={onMulaRondaan} 
             />
           ) : (
@@ -332,7 +342,7 @@ export default function HomeMapScreen() {
               <View className="h-3" />
               <Fab 
                 label="IMBAS" 
-                icon={<ScanLine size={18} color="#0F172A" />} 
+                icon={<ScanLine size={18} color={palette.text} />} 
                 onPress={() => {
                   if (permission?.granted === false) {
                     Alert.alert('Ralat', 'Keizinan kamera diperlukan untuk imbas QR.');
@@ -345,12 +355,12 @@ export default function HomeMapScreen() {
           )}
           
           <View className="h-3" />
-          <Fab label="LAPORAN" icon={<FileText size={18} color="#0F172A" />} />
+          <Fab label="LAPORAN" icon={<FileText size={18} color={palette.text} />} />
           
           <View className="h-3" />
           <Fab
             label="SOS"
-            icon={<Siren size={18} color="#0F172A" />}
+            icon={<Siren size={18} color={palette.text} />}
             onPress={() => Alert.alert('SOS', 'Menghantar SOS...')}
           />
         </View>
@@ -371,17 +381,20 @@ function Fab({
   return (
     <Pressable
       onPress={onPress ?? (() => Alert.alert(label, 'Coming soon'))}
-      className="flex-row items-center gap-2 rounded-full bg-white px-4 py-3 shadow-sm"
+      className="flex-row items-center gap-2 bg-white"
       style={{
-        shadowColor: '#000',
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 6,
+        borderRadius: radii.pill,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderWidth: 1,
+        borderColor: palette.border,
+        ...shadows.floating,
       }}
     >
       {icon}
-      <Text className="text-xs font-extrabold text-slate-900">{label}</Text>
+      <AppText variant="caption" style={{ fontWeight: '800', color: palette.text }}>
+        {label}
+      </AppText>
     </Pressable>
   );
 }

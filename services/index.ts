@@ -1,5 +1,3 @@
-// Compatibility re-export: keep old imports working (`../services/api`).
-// Prefer importing from `../services` (services/index.ts).
 export * from './apiClient';
 export * from './authService';
 export * from './profileService';

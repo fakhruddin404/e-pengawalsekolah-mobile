@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Mail, LogOut, RefreshCw } from 'lucide-react-native';
 
+import { AppText } from '../components/AppText';
+import { palette, radii, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { postSendEmailVerification } from '../services/api';
+import { performLogout, postSendEmailVerification } from '../services';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -15,8 +17,7 @@ export default function VerifyEmailScreen() {
 
   const onRefreshStatus = () => {
     // Cara paling mudah: Log keluar supaya dia login balik dan ambil data terbaru
-    setSession(null); 
-    router.replace('/'); 
+    performLogout({ session, setSession, router });
   };
 
   // Fungsi untuk hantar semula pautan
@@ -39,77 +40,95 @@ export default function VerifyEmailScreen() {
 
   // Fungsi untuk log keluar supaya boleh log masuk semula lepas verify
   function onLogout() {
-    // Kosongkan session
-    setSession(null);
-    // Kembali ke halaman log masuk
-    router.replace('/'); 
+    performLogout({ session, setSession, router });
   }
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 items-center justify-center px-8">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl }}>
         
         {/* Ikon Email Utama */}
-        <View className="mb-6 h-32 w-32 items-center justify-center rounded-full bg-blue-50">
-          <Mail size={60} color="#1F7BFF" />
+        <View
+          style={{
+            marginBottom: spacing.lg,
+            height: 128,
+            width: 128,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 999,
+            backgroundColor: '#EFF6FF',
+            borderWidth: 1,
+            borderColor: '#DBEAFE',
+          }}
+        >
+          <Mail size={60} color={palette.primary} />
         </View>
 
-        <Text className="text-center text-3xl font-extrabold text-primary">
+        <AppText variant="h2" className="text-center" style={{ color: palette.primary }}>
           Sahkan Email Anda
-        </Text>
+        </AppText>
 
-        <Text className="mt-4 text-center text-base text-slate-600">
+        <AppText variant="body" className="text-center" style={{ marginTop: spacing.md, color: '#475569' }}>
           Kami telah menghantar pautan pengesahan ke email:
-        </Text>
-        <Text className="mt-1 text-center text-lg font-bold text-slate-900">
+        </AppText>
+        <AppText variant="h3" className="mt-1 text-center" style={{ fontWeight: '700' }}>
           {session?.email || 'email anda'}
-        </Text>
+        </AppText>
 
-        <Text className="mt-6 text-center text-sm text-slate-500">
+        <AppText variant="bodySm" className="text-center" style={{ marginTop: spacing.lg, color: palette.muted }}>
           Sila semak peti masuk atau folder spam anda. Klik pautan di dalam email tersebut untuk mengesahkan akaun anda.
-        </Text>
+        </AppText>
 
-        <View className="mt-12 w-full space-y-4">
+        <View style={{ marginTop: spacing.xl, width: '100%' }}>
           
           {/* Butang Hantar Semula */}
           <Pressable
             onPress={onResendEmail}
             disabled={sending}
             className={[
-              'h-14 w-full flex-row items-center justify-center rounded-full bg-primary',
+              'w-full flex-row items-center justify-center bg-primary',
               sending ? 'opacity-70' : 'opacity-100',
             ].join(' ')}
+            style={{ height: 56, borderRadius: radii.pill }}
           >
             {sending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-base font-bold text-white">Hantar Semula Pautan</Text>
+              <AppText variant="body" style={{ fontWeight: '700', color: '#ffffff' }}>
+                Hantar Semula Pautan
+              </AppText>
             )}
           </Pressable>
 
-          <View className="h-4" />
+          <View style={{ height: spacing.md }} />
 
           {/* Butang Log Keluar / Refresh (Selepas dorang verify kat browser) */}
           <Pressable
             onPress={onLogout}
-            className="h-14 w-full flex-row items-center justify-center rounded-full border border-primary bg-white"
+            className="w-full flex-row items-center justify-center bg-white"
+            style={{
+              height: 56,
+              borderRadius: radii.pill,
+              borderWidth: 1,
+              borderColor: palette.border,
+            }}
           >
-            <RefreshCw size={20} color="#1F7BFF" />
-            <Text className="ml-2 text-base font-bold text-primary">
+            <RefreshCw size={20} color={palette.primary} />
+            <AppText variant="body" className="ml-2" style={{ fontWeight: '700', color: palette.primary }}>
               Sudah Sahkan? Log Masuk Semula
-            </Text>
+            </AppText>
           </Pressable>
 
-          <View className="h-2" />
+          <View style={{ height: spacing.sm }} />
 
           <Pressable
             onPress={onLogout}
             className="p-4 flex-row items-center justify-center"
           >
             <LogOut size={18} color="#EF4444" />
-            <Text className="ml-2 text-sm font-bold text-red-500">
+            <AppText variant="bodySm" className="ml-2" style={{ fontWeight: '700', color: '#ef4444' }}>
               Log Keluar
-            </Text>
+            </AppText>
           </Pressable>
 
         </View>

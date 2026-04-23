@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+
+import { AppText } from '../components/AppText';
+import { textVariants } from '../theme/typography';
 
 const INPUT_BG = '#F0F4FF';
 
@@ -37,9 +40,9 @@ export default function PasswordManagerScreen() {
           >
             <ArrowLeft size={22} color="#1F7BFF" />
           </Pressable>
-          <Text className="text-lg font-extrabold text-primary">
+          <AppText variant="h3" style={{ color: '#1F7BFF' }}>
             Password Manager
-          </Text>
+          </AppText>
         </View>
 
         <View className="pt-6">
@@ -55,9 +58,9 @@ export default function PasswordManagerScreen() {
             className="mt-2 self-end"
             accessibilityRole="button"
           >
-            <Text className="text-xs font-semibold text-primary">
+            <AppText variant="caption" style={{ fontWeight: '600', color: '#1F7BFF' }}>
               Forgot Password?
-            </Text>
+            </AppText>
           </Pressable>
 
           <View className="h-6" />
@@ -93,9 +96,9 @@ export default function PasswordManagerScreen() {
           ].join(' ')}
           accessibilityRole="button"
         >
-          <Text className="text-base font-extrabold text-white">
+          <AppText variant="body" style={{ fontWeight: '800', color: '#ffffff' }}>
             Change Password
-          </Text>
+          </AppText>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -103,7 +106,11 @@ export default function PasswordManagerScreen() {
 }
 
 function Label({ text }: { text: string }) {
-  return <Text className="mb-2 text-sm font-bold text-slate-900">{text}</Text>;
+  return (
+    <AppText variant="label" className="mb-2">
+      {text}
+    </AppText>
+  );
 }
 
 function PasswordField({
@@ -126,7 +133,7 @@ function PasswordField({
         placeholder="************"
         placeholderTextColor="#94A3B8"
         className="h-12 rounded-2xl px-4 pr-12 text-slate-900"
-        style={{ backgroundColor: INPUT_BG }}
+        style={[textVariants.body, { backgroundColor: INPUT_BG }]}
       />
       <Pressable
         onPress={onToggleVisible}

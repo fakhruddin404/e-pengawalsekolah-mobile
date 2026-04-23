@@ -1,19 +1,18 @@
-import { Alert, Image, Pressable, Text, View } from 'react-native';
+import { Alert, Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Bell, Cog, Plus } from 'lucide-react-native';
+import { Bell, Cog } from 'lucide-react-native';
 
+import { AppText } from './AppText';
+import { palette, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
 
-const ICON_BUTTON_BG = '#E8EEF6';
-const TAMBAH_PILL_BG = '#D1E3FF';
+const ICON_BUTTON_BG = '#F1F5F9';
 
 export type DashboardHeaderProps = {
   showTambah?: boolean;
 };
 
-export function DashboardHeader({
-  showTambah = false,
-}: DashboardHeaderProps) {
+export function DashboardHeader() {
   const router = useRouter();
   const { session } = useAuth();
   const pengawalName = session?.displayName ?? '';
@@ -22,7 +21,16 @@ export function DashboardHeader({
   const initials = getInitials(pengawalName);
 
   return (
-    <View className="flex-row items-center justify-between bg-white px-4 pt-2 pb-1">
+    <View
+      className="flex-row items-center justify-between bg-white"
+      style={{
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+      }}
+    >
       <View className="min-w-0 flex-1 flex-row items-center">
         {photoUrl ? (
           <Image
@@ -34,40 +42,32 @@ export function DashboardHeader({
           />
         ) : (
           <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200">
-            <Text className="text-sm font-extrabold text-slate-700">
+            <AppText variant="bodySm" style={{ fontWeight: '800', color: palette.text }}>
               {initials || '?'}
-            </Text>
+            </AppText>
           </View>
         )}
         <View className="ml-3 min-w-0 flex-1">
-          <Text className="text-xs font-semibold text-primary">Hi, WelcomeBack</Text>
-          <Text
-            className="text-lg font-extrabold text-slate-900"
+          <AppText variant="caption" style={{ color: palette.primary, fontWeight: '600' }}>
+            Hi, WelcomeBack
+          </AppText>
+          <AppText
+            variant="h3"
             numberOfLines={1}
           >
             {pengawalName || '…'}
-          </Text>
+          </AppText>
         </View>
       </View>
 
       <View className="ml-2 flex-row shrink-0 items-center gap-2">
-        {showTambah ? (
-          <Pressable
-            onPress={() => Alert.alert('Tambah pelawat', 'Coming soon')}
-            className="flex-row items-center rounded-full px-3 py-2"
-            style={{ backgroundColor: TAMBAH_PILL_BG }}
-          >
-            <Plus size={16} color="#1F7BFF" strokeWidth={2.5} />
-            <Text className="ml-1.5 text-xs font-bold text-primary">Tambah</Text>
-          </Pressable>
-        ) : null}
         <View className="relative">
           <Pressable
             onPress={() => Alert.alert('Notifikasi', 'Coming soon')}
             className="h-10 w-10 items-center justify-center rounded-full"
             style={{ backgroundColor: ICON_BUTTON_BG }}
           >
-            <Bell size={18} color="#0F172A" />
+            <Bell size={18} color={palette.text} />
           </Pressable>
           <View
             className="absolute h-2.5 w-2.5 rounded-full bg-primary"
@@ -84,7 +84,7 @@ export function DashboardHeader({
           className="h-10 w-10 items-center justify-center rounded-full"
           style={{ backgroundColor: ICON_BUTTON_BG }}
         >
-          <Cog size={18} color="#0F172A" />
+          <Cog size={18} color={palette.text} />
         </Pressable>
       </View>
     </View>

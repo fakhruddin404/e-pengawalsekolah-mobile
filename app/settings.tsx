@@ -1,12 +1,15 @@
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronRight, KeyRound, LogOut, User, ArrowLeft } from 'lucide-react-native';
 
+import { AppText } from '../components/AppText';
+import { palette, radii, shadows, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
+import { performLogout } from '../services/logout';
 
-const ROW_BG = '#FFFFFF';
-const ICON_BG = '#D1E3FF';
+const ROW_BG = palette.surface;
+const ICON_BG = '#E8F1FF';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -17,7 +20,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <View className="px-5 pt-2">
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
         <View className="relative flex-row items-center justify-center pb-2">
           <Pressable
             onPress={() => router.back()}
@@ -27,14 +30,16 @@ export default function SettingsScreen() {
           >
             <ArrowLeft size={22} color="#1F7BFF" />
           </Pressable>
-          <Text className="text-lg font-extrabold text-primary">Settings</Text>
+          <AppText variant="h3" style={{ color: palette.primary }}>
+            Settings
+          </AppText>
         </View>
 
-        <View className="items-center pt-6 pb-8">
+        <View style={{ alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xl }}>
           <AvatarCircle initials={initials} />
-          <Text className="mt-4 text-2xl font-extrabold text-slate-900">
+          <AppText variant="h2" style={{ marginTop: spacing.md }}>
             {name || 'Pengawal'}
-          </Text>
+          </AppText>
         </View>
 
         <SettingsRow
@@ -58,10 +63,7 @@ export default function SettingsScreen() {
               {
                 text: 'Log Keluar',
                 style: 'destructive',
-                onPress: () => {
-                  setSession(null);
-                  router.replace('/login');
-                },
+                onPress: () => performLogout({ session, setSession, router }),
               },
             ])
           }
@@ -83,14 +85,15 @@ function SettingsRow({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center rounded-2xl px-4 py-4"
+      className="flex-row items-center"
       style={{
         backgroundColor: ROW_BG,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 2,
+        borderRadius: radii.md,
+        borderWidth: 1,
+        borderColor: palette.border,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        ...shadows.card,
       }}
       accessibilityRole="button"
     >
@@ -100,9 +103,9 @@ function SettingsRow({
       >
         {icon}
       </View>
-      <Text className="ml-4 flex-1 text-base font-semibold text-slate-900">
+      <AppText variant="body" className="ml-4 flex-1" style={{ fontWeight: '600' }}>
         {label}
-      </Text>
+      </AppText>
       <ChevronRight size={20} color="#94A3B8" />
     </Pressable>
   );
@@ -111,9 +114,9 @@ function SettingsRow({
 function AvatarCircle({ initials }: { initials: string }) {
   return (
     <View className="h-24 w-24 items-center justify-center rounded-full bg-slate-200">
-      <Text className="text-2xl font-extrabold text-slate-700">
+      <AppText variant="h2" style={{ color: '#334155' }}>
         {initials || '?'}
-      </Text>
+      </AppText>
     </View>
   );
 }

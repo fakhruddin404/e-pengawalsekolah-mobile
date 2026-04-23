@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
-import {ActivityIndicator, Alert, Image, Pressable, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, Alert, Image, Pressable, TextInput, View} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 
+import { AppText } from '../components/AppText';
+import { textVariants } from '../theme/typography';
+import { palette, radii, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { postLogin } from '../services/api';
+import { postLogin } from '../services';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -113,13 +116,17 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6">
+      <View style={{ flex: 1, paddingHorizontal: spacing.xl }}>
         {/* View for the login form */}
         <View className="w-full max-w-md flex-1 self-center">
 
-          <Text className="mt-12 text-center text-4xl font-extrabold text-primary">
+          <AppText
+            variant="h1"
+            className="mt-12 text-center"
+            style={{ color: palette.primary }}
+          >
             SELAMAT DATANG
-          </Text>
+          </AppText>
 
           <View className="items-center pt-16">
             <Image
@@ -129,10 +136,10 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View className="mt-12 w-full">
-            <Text className="mb-2 text-sm font-semibold text-slate-700">
+          <View style={{ marginTop: spacing.xl, width: '100%' }}>
+            <AppText variant="label" style={{ marginBottom: spacing.xs, color: palette.muted }}>
               Email
-            </Text>
+            </AppText>
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -141,14 +148,25 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
-              className="h-12 rounded-2xl bg-inputBg px-4 text-slate-900"
+              className="text-slate-900"
+              style={[
+                textVariants.body,
+                {
+                  height: 52,
+                  borderRadius: radii.md,
+                  paddingHorizontal: spacing.md,
+                  backgroundColor: '#F8FAFC',
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                },
+              ]}
             />
           </View>
 
-          <View className="mt-6 w-full">
-            <Text className="mb-2 text-sm font-semibold text-slate-700">
+          <View style={{ marginTop: spacing.lg, width: '100%' }}>
+            <AppText variant="label" style={{ marginBottom: spacing.xs, color: palette.muted }}>
               Password
-            </Text>
+            </AppText>
             <View className="relative">
               <TextInput
                 value={password}
@@ -156,7 +174,19 @@ export default function LoginScreen() {
                 placeholder="************"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
-                className="h-12 rounded-2xl bg-inputBg px-4 pr-12 text-slate-900"
+                className="text-slate-900"
+                style={[
+                  textVariants.body,
+                  {
+                    height: 52,
+                    borderRadius: radii.md,
+                    paddingHorizontal: spacing.md,
+                    paddingRight: 48,
+                    backgroundColor: '#F8FAFC',
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                  },
+                ]}
               />
               <Pressable
                 onPress={() => setShowPassword((v) => !v)}
@@ -178,12 +208,15 @@ export default function LoginScreen() {
               onPress={() =>
                 Alert.alert('Lupa Kata Laluan', 'Sila hubungi admin untuk reset.')
               }
-              className="mt-2 self-end"
+              style={{ marginTop: spacing.xs, alignSelf: 'flex-end' }}
               accessibilityRole="button"
             >
-              <Text className="text-xs font-semibold text-primary">
+              <AppText
+                variant="caption"
+                style={{ color: palette.primary, fontWeight: '600' }}
+              >
                 Forget Password
-              </Text>
+              </AppText>
             </Pressable>
           </View>
 
@@ -191,15 +224,18 @@ export default function LoginScreen() {
             onPress={onSubmit} // on press will submit onSubmit function
             disabled={!canSubmit} // if not can submit will disabled
             className={[
-              'mt-10 h-14 w-full items-center justify-center rounded-full bg-primary',
+              'w-full items-center justify-center bg-primary',
               !canSubmit ? 'opacity-60' : 'opacity-100',
             ].join(' ')}
+            style={{ marginTop: spacing.xl, height: 56, borderRadius: radii.pill }}
             accessibilityRole="button"
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-base font-bold text-white">Log Masuk</Text>
+              <AppText variant="body" style={{ color: '#ffffff', fontWeight: '700' }}>
+                Log Masuk
+              </AppText>
             )}
           </Pressable>
         </View>

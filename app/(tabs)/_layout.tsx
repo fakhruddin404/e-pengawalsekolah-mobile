@@ -1,8 +1,22 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 
 import { MainTabBar } from '../../components/MainTabBar';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TabsLayout() {
+  const router = useRouter();
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session) {
+      router.replace('/login');
+    }
+  }, [router, session]);
+
+  // Prevent rendering tab screens when logged out (avoids swipe/back to cached tabs).
+  if (!session) return null;
+
   return (
     <Tabs
       tabBar={(props) => <MainTabBar {...props} />}

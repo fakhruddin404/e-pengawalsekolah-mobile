@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+
+import { AppText } from '../../components/AppText';
 
 type Coords = { latitude: number; longitude: number };
 
@@ -78,8 +80,22 @@ export default function MapsDashboard({
     };
   }, [isRondaanActive]);
 
-  if (Platform.OS === 'web') return <View className="flex-1 items-center justify-center"><Text>Peta tersedia pada Android/iOS</Text></View>;
-  if (permDenied) return <View className="flex-1 items-center justify-center"><Text>Keizinan lokasi diperlukan</Text></View>;
+  if (Platform.OS === 'web')
+    return (
+      <View className="flex-1 items-center justify-center px-6">
+        <AppText variant="body" className="text-center" style={{ color: '#64748b' }}>
+          Peta tersedia pada Android/iOS
+        </AppText>
+      </View>
+    );
+  if (permDenied)
+    return (
+      <View className="flex-1 items-center justify-center px-6">
+        <AppText variant="body" className="text-center" style={{ color: '#64748b' }}>
+          Keizinan lokasi diperlukan
+        </AppText>
+      </View>
+    );
 
   const initialRegion = coords
     ? { ...coords, latitudeDelta: DELTA, longitudeDelta: DELTA }

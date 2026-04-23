@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Pencil } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
+import { AppText } from '../components/AppText';
+import { textVariants } from '../theme/typography';
+import { palette, radii, shadows, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { postSendEmailVerification, postUpdateProfile } from '../services/api';
+import { postSendEmailVerification, postUpdateProfile } from '../services';
 
-const INPUT_BG = '#F0F4FF';
+const INPUT_BG = '#F8FAFC';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -23,6 +27,11 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState(session?.email ?? '');
   const [dob, setDob] = useState('');
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [pickedPhoto, setPickedPhoto] = useState<{
+    uri: string;
+    type: string;
+    name: string;
+  } | null>(null);
   const [sendingVerify, setSendingVerify] = useState(false);
 
   const initials = useMemo(() => getInitials(fullName), [fullName]);
@@ -31,7 +40,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <View className="px-5 pt-2">
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
         <View className="relative flex-row items-center justify-center pb-2">
           <Pressable
             onPress={() => router.back()}
@@ -41,10 +50,12 @@ export default function ProfileScreen() {
           >
             <ArrowLeft size={22} color="#1F7BFF" />
           </Pressable>
-          <Text className="text-lg font-extrabold text-primary">Profile</Text>
+          <AppText variant="h3" style={{ color: palette.primary }}>
+            Profile
+          </AppText>
         </View>
 
-        <View className="items-center pt-6 pb-8">
+        <View style={{ alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xl }}>
           <View className="relative">
             {localPhotoUri ? (
               <Image
@@ -62,9 +73,9 @@ export default function ProfileScreen() {
               />
             ) : (
               <View className="h-24 w-24 items-center justify-center rounded-full bg-slate-200">
-                <Text className="text-2xl font-extrabold text-slate-700">
+                <AppText variant="h2" style={{ color: '#334155' }}>
                   {initials || '?'}
-                </Text>
+                </AppText>
               </View>
             )}
             <Pressable
@@ -81,10 +92,49 @@ export default function ProfileScreen() {
                   aspect: [1, 1],
                 });
                 if (!result.canceled) {
-                  setLocalPhotoUri(result.assets[0]?.uri ?? null);
+                  const asset = result.assets?.[0];
+                  const uri = asset?.uri ?? null;
+                  setLocalPhotoUri(uri);
+                  if (uri) {
+                    const originalName = asset?.fileName ?? 'profile.jpg';
+                    const ext =
+                      (originalName.split('.').pop() || '').toLowerCase() ||
+                      (uri.split('?')[0]?.split('.').pop() || '').toLowerCase();
+                    const type =
+                      asset?.mimeType ??
+                      (ext === 'png' ? 'image/png' : 'image/jpeg');
+
+                    // On Android, ImagePicker may return `content://...` URIs.
+                    // Copy to cache so multipart upload works reliably.
+                    let uploadUri = uri;
+                    if (uri.startsWith('content://')) {
+                      const safeExt = ext === 'png' ? 'png' : 'jpg';
+                      const dest = `${FileSystem.Paths.cache.uri}upload_${Date.now()}.${safeExt}`;
+                      try {
+                        await FileSystem.copyAsync({ from: uri, to: dest });
+                        uploadUri = dest;
+                      } catch {
+                        // If copy fails, fall back to the original URI.
+                        uploadUri = uri;
+                      }
+                    }
+
+                    setPickedPhoto({
+                      uri: uploadUri,
+                      type,
+                      name: originalName,
+                    });
+                  } else {
+                    setPickedPhoto(null);
+                  }
                 }
               }}
               className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full bg-primary"
+              style={{
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.7)',
+                ...shadows.card,
+              }}
               accessibilityRole="button"
               accessibilityLabel="Tukar gambar profil"
             >
@@ -96,7 +146,7 @@ export default function ProfileScreen() {
         <Label text="Full Name" />
         <Field value={fullName} onChangeText={setFullName} placeholder="Full Name" />
 
-        <View className="h-5" />
+        <View style={{ height: spacing.md }} />
         <Label text="Phone Number" />
         <Field
           value={phoneNumber}
@@ -105,7 +155,7 @@ export default function ProfileScreen() {
           keyboardType="phone-pad"
         />
 
-        <View className="h-5" />
+        <View style={{ height: spacing.md }} />
         <Label text="IC Number" />
         <Field
           value={icNumber}
@@ -113,7 +163,7 @@ export default function ProfileScreen() {
           placeholder="123456789012"
         />
 
-        <View className="h-5" />
+        <View style={{ height: spacing.md }} />
         <Label text="Email" />
         <Field
           value={email}
@@ -123,7 +173,7 @@ export default function ProfileScreen() {
           autoCapitalize="none"
         />
         
-        <View className="h-5" />
+        <View style={{ height: spacing.lg }} />
         <Pressable
           onPress={async () => {
             if (!session || isUpdating) return;
@@ -136,15 +186,24 @@ export default function ProfileScreen() {
                 email: email,
                 phone: phoneNumber,
                 ic: icNumber,
+                ...(pickedPhoto ? { photo: pickedPhoto } : {}),
               });
 
               // 2. Update session dalam React Context (UI berubah secara automatik)
+              const nextPhotoUrl =
+                res?.photo_url ??
+                res?.photoUrl ??
+                res?.user?.pengawal?.photo_url ??
+                res?.data?.photo_url ??
+                session.photoUrl ??
+                null;
               setSession({
                 ...session,
                 displayName: fullName,
                 email: email,
                 phone: phoneNumber,
                 ic: icNumber,
+                photoUrl: nextPhotoUrl,
               });
 
               // 3. Maklumkan kepada user
@@ -170,12 +229,13 @@ export default function ProfileScreen() {
             }
           }}
           disabled={isUpdating}
-          className={['h-14 items-center justify-center rounded-full bg-primary', isUpdating ? 'opacity-70' : 'opacity-100'].join(' ')}
+          className={['items-center justify-center bg-primary', isUpdating ? 'opacity-70' : 'opacity-100'].join(' ')}
+          style={{ height: 56, borderRadius: radii.pill }}
           accessibilityRole="button"
         >
-          <Text className="text-base font-extrabold text-white">
+          <AppText variant="body" style={{ fontWeight: '800', color: '#ffffff' }}>
             {isUpdating ? 'Menyimpan...' : 'Update Profile'}
-          </Text>
+          </AppText>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -183,7 +243,11 @@ export default function ProfileScreen() {
 }
 
 function Label({ text }: { text: string }) {
-  return <Text className="mb-2 text-sm font-bold text-slate-900">{text}</Text>;
+  return (
+    <AppText variant="label" style={{ marginBottom: spacing.xs, color: palette.muted }}>
+      {text}
+    </AppText>
+  );
 }
 
 function Field({
@@ -205,11 +269,21 @@ function Field({
       onChangeText={onChangeText}
       editable
       placeholder={placeholder}
-      placeholderTextColor="#1F7BFF"
-      className="h-12 rounded-2xl px-4 text-slate-900"
+      placeholderTextColor="#94A3B8"
+      className="text-slate-900"
       keyboardType={keyboardType}
       autoCapitalize={autoCapitalize}
-      style={{ backgroundColor: INPUT_BG }}
+      style={[
+        textVariants.body,
+        {
+          height: 52,
+          borderRadius: radii.md,
+          paddingHorizontal: spacing.md,
+          backgroundColor: INPUT_BG,
+          borderWidth: 1,
+          borderColor: palette.border,
+        },
+      ]}
     />
   );
 }

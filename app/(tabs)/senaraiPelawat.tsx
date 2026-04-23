@@ -4,17 +4,21 @@ import {
   FlatList,
   Image,
   Pressable,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, Clock, Search } from 'lucide-react-native';
+import { Calendar, Clock, Plus, Search } from 'lucide-react-native';
 
+import { AppText } from '../../components/AppText';
+import { textVariants } from '../../theme/typography';
+import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { DashboardHeader } from '../../components/DashboardHeader';
 
-const CARD_BG = '#F2F2F2';
-const TAG_BG = '#FFFFFF';
+const CARD_BG = palette.surface;
+const TAG_BG = palette.surfaceAlt;
+const PRIMARY = palette.primary;
+const ICON_BUTTON_BG = '#E8F1FF';
 
 type Visitor = {
   id: string;
@@ -72,28 +76,65 @@ export default function SenaraiPelawatScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <DashboardHeader showTambah />
+      <DashboardHeader />
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.md,
+          paddingBottom: spacing.xl,
+          paddingTop: spacing.sm,
+        }}
         ListHeaderComponent={
-          <View className="pb-4 pt-2">
-            <View
-              className="flex-row items-center rounded-full border border-slate-200 bg-white px-4 py-3"
-              style={{ borderWidth: 1 }}
-            >
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Cari pelawat…"
-                placeholderTextColor="#94A3B8"
-                className="min-h-[22px] flex-1 text-base text-slate-900"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              <Search size={22} color="#1F7BFF" />
+          <View style={{ paddingBottom: spacing.md }}>
+            <View className="flex-row items-center">
+              <View
+                className="flex-1 overflow-hidden bg-white"
+                style={{
+                  borderRadius: radii.pill,
+                  borderWidth: 1,
+                  borderColor: palette.border,
+                }}
+              >
+                <View
+                  className="flex-row items-center"
+                  style={{ paddingHorizontal: spacing.md, paddingVertical: 10 }}
+                >
+                  <Search size={20} color={PRIMARY} />
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Cari pelawat…"
+                    placeholderTextColor="#94A3B8"
+                    className="ml-2 min-h-[22px] flex-1 text-base text-slate-900"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    style={textVariants.body}
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                onPress={() => Alert.alert('Tambah pelawat', 'Coming soon')}
+                className="ml-3 flex-row items-center"
+                style={{
+                  backgroundColor: ICON_BUTTON_BG,
+                  borderRadius: radii.pill,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 14,
+                }}
+                accessibilityRole="button"
+              >
+                <Plus size={18} color={PRIMARY} strokeWidth={2.5} />
+                <AppText
+                  variant="bodySm"
+                  className="ml-2"
+                  style={{ fontWeight: '800', color: PRIMARY }}
+                >
+                  Tambah
+                </AppText>
+              </Pressable>
             </View>
           </View>
         }
@@ -107,9 +148,13 @@ export default function SenaraiPelawatScreen() {
         )}
         ItemSeparatorComponent={() => <View className="h-3" />}
         ListEmptyComponent={
-          <Text className="py-8 text-center text-slate-500">
+          <AppText
+            variant="bodySm"
+            className="py-8 text-center"
+            style={{ color: '#64748b' }}
+          >
             Tiada pelawat dijumpai.
-          </Text>
+          </AppText>
         }
       />
     </SafeAreaView>
@@ -125,53 +170,82 @@ function VisitorCard({
 }) {
   return (
     <View
-      className="overflow-hidden rounded-3xl px-4 py-4"
-      style={{ backgroundColor: CARD_BG }}
+      className="overflow-hidden"
+      style={{
+        backgroundColor: CARD_BG,
+        borderRadius: radii.md,
+        borderWidth: 1,
+        borderColor: palette.border,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        ...shadows.card,
+      }}
     >
       <View className="flex-row">
         <Image
           source={{ uri: visitor.avatarUri }}
-          className="h-14 w-14 rounded-full"
+          className="h-14 w-14 rounded-full bg-slate-200"
         />
         <View className="ml-3 flex-1">
-          <Text className="text-base font-bold text-primary">{visitor.name}</Text>
-          <Text className="mt-0.5 text-sm text-slate-700">
-            <Text className="font-semibold text-slate-800">Tujuan: </Text>
+          <AppText variant="body" style={{ fontWeight: '700', color: PRIMARY }}>
+            {visitor.name}
+          </AppText>
+          <AppText variant="bodySm" className="mt-0.5" style={{ color: '#334155' }}>
+            <AppText variant="bodySm" style={{ fontWeight: '600', color: '#1e293b' }}>
+              Tujuan:{' '}
+            </AppText>
             {visitor.purpose}
-          </Text>
-          <Text className="mt-0.5 text-sm text-slate-700">
-            <Text className="font-semibold text-slate-800">No. Plat: </Text>
+          </AppText>
+          <AppText variant="bodySm" className="mt-0.5" style={{ color: '#334155' }}>
+            <AppText variant="bodySm" style={{ fontWeight: '600', color: '#1e293b' }}>
+              No. Plat:{' '}
+            </AppText>
             {visitor.plate}
-          </Text>
+          </AppText>
         </View>
       </View>
 
-      <View className="mt-3 flex-row flex-wrap gap-2">
+      <View className="mt-4 flex-row flex-wrap gap-2">
         <View
           className="flex-row items-center rounded-full px-3 py-1.5"
           style={{ backgroundColor: TAG_BG }}
         >
           <Calendar size={14} color="#1F7BFF" />
-          <Text className="ml-1.5 text-xs font-semibold text-primary">
+          <AppText
+            variant="caption"
+            className="ml-1.5"
+            style={{ fontWeight: '600', color: PRIMARY }}
+          >
             {visitor.dateLabel}
-          </Text>
+          </AppText>
         </View>
         <View
           className="flex-row items-center rounded-full px-3 py-1.5"
           style={{ backgroundColor: TAG_BG }}
         >
           <Clock size={14} color="#1F7BFF" />
-          <Text className="ml-1.5 text-xs font-semibold text-primary">
+          <AppText
+            variant="caption"
+            className="ml-1.5"
+            style={{ fontWeight: '600', color: PRIMARY }}
+          >
             {visitor.durationLabel}
-          </Text>
+          </AppText>
         </View>
       </View>
 
       <Pressable
         onPress={onKeluar}
-        className="mt-4 h-12 items-center justify-center rounded-2xl bg-primary"
+        className="items-center justify-center bg-primary"
+        style={{
+          marginTop: spacing.md,
+          height: 52,
+          borderRadius: radii.pill,
+        }}
       >
-        <Text className="text-base font-bold text-white">Keluar</Text>
+        <AppText variant="body" style={{ fontWeight: '800', color: '#ffffff' }}>
+          Keluar
+        </AppText>
       </Pressable>
     </View>
   );
