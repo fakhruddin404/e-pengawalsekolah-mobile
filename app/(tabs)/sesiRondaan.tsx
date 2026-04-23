@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -6,39 +6,190 @@ import {
   Play,
   ScanLine,
   Siren,
-  StopCircle, // Fix 1: Import ditambah
+  StopCircle,
 } from 'lucide-react-native';
+import {
+  CameraView,
+  type BarcodeScanningResult,
+  useCameraPermissions,
+} from 'expo-camera';
+import * as Location from 'expo-location';
 
 import { DashboardHeader } from '../../components/DashboardHeader';
 import { useAuth } from '../../context/AuthContext';
-import { getTitikSemak, postSimpanRondaan } from '../../services/api';
+import {
+  getTitikSemak,
+  postSahkanTitik,
+  postSimpanRondaan,
+  calculatePatrolStats,
+} from '../../services/api';
 
 const MapsDashboard = lazy(() => import('./MapsDashboard'));
+
+type TitikSemakMapPoint = {
+  id?: string | number;
+  name?: string;
+  latitude: number;
+  longitude: number;
+  raw?: any;
+};
+
+function toNumber(value: any): number | null {
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value)
+        : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeTitikSemakPoint(p: any): TitikSemakMapPoint | null {
+  const lat =
+    toNumber(p?.latitude) ??
+    toNumber(p?.latitud) ??
+    toNumber(p?.fld_loc_latitud) ??
+    toNumber(p?.lat);
+  const lng =
+    toNumber(p?.longitude) ??
+    toNumber(p?.longitud) ??
+    toNumber(p?.fld_loc_longitud) ??
+    toNumber(p?.long);
+
+  if (lat === null || lng === null) return null;
+
+  return {
+    id: p?.id ?? p?.fld_loc_id ?? p?.qr ?? undefined,
+    name: p?.name ?? p?.fld_loc_nama ?? undefined,
+    latitude: lat,
+    longitude: lng,
+    raw: p,
+  };
+}
 
 export default function HomeMapScreen() {
   const [isRondaanActive, setIsRondaanActive] = useState(false);
   const [titikSemak, setTitikSemak] = useState<any[]>([]);
   const [userRoute, setUserRoute] = useState<any[]>([]);
   const [totalTitik, setTotalTitik] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
   const { session } = useAuth();
+  const scanLockRef = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!permission?.granted) await requestPermission();
+    })();
+    // Intentionally omit deps to avoid repeated prompts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
+    if (scanLockRef.current) return;
+    scanLockRef.current = true;
+
+    // tutup overlay
+    setIsScanning(false);
+
+    try {
+      if (!session?.token) {
+        Alert.alert('Ralat', 'Sesi tidak sah. Sila log masuk semula.');
+        return;
+      }
+
+      //get the scanned data
+      let qrObject;
+      try {
+        qrObject = JSON.parse(data);
+      } catch (e) {
+        Alert.alert('Ralat', 'Format kod QR tidak sah (Bukan JSON).');
+        return;
+      }
+
+      const fld_loc_id = qrObject.id; 
+      const qr_code = qrObject.secret;
+      
+      //request permission to use location
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Ralat', 'Keizinan lokasi diperlukan untuk pengesahan.');
+        return;
+      }
+
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+      });
+
+      // Hantar terus ke API
+      const res = await postSahkanTitik(session.token, {
+        fld_loc_id: fld_loc_id, 
+        qr_code: qr_code,
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+
+      // jawapan dari API
+      if (res?.success === true) {
+        setTitikSemak((prev) =>
+          //remove the titik semak from the list
+          (Array.isArray(prev) ? prev : []).filter((p: any) => {
+            const id = (p?.id ?? p?.fld_loc_id ?? '').toString();
+            return id !== fld_loc_id.toString();
+          })
+        );
+        Alert.alert('Berjaya', res?.message ?? 'Titik semak disahkan.');
+      } else {
+        Alert.alert('Ralat', res?.message ?? 'Pengesahan gagal. Anda mungkin terlalu jauh dari titik semak.');
+      }
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ??
+        error?.message ??
+        'Gagal mengesahkan titik semak.';
+      Alert.alert('Ralat', msg);
+    } finally {
+      setTimeout(() => {
+        scanLockRef.current = false;
+      }, 1000); // 1 saat cooldown
+    }
+  };
+
+  // Function to start the rondaan
   const onMulaRondaan = async () => {
     try {
-      // 1. Panggil API dari Laravel
-      // Pastikan anda sudah import 'getTitikSemak' dari fail services/api anda
-      const response = await getTitikSemak(session?.token ?? '');
       
-      if (response) {
+      const responseTitikSemak = await getTitikSemak(session?.token ?? '');
+      
+      if (responseTitikSemak) {
         const titik =
-          Array.isArray((response as any)?.data) ? (response as any).data : response;
+          Array.isArray((responseTitikSemak as any)?.data) ? (responseTitikSemak as any).data : responseTitikSemak;
 
-        // 2. Simpan data sebenar dari database ke dalam state
-        setTitikSemak(titik as any[]);
+        // Normalize the titik semak data
+        const normalized = (Array.isArray(titik) ? titik : [])
+          .map(normalizeTitikSemakPoint)// susun comey bare ni nk paka lamo
+          .filter(Boolean) as TitikSemakMapPoint[];
+
+        if (normalized.length === 0) {
+          Alert.alert(
+            'Ralat',
+            'Data titik semak diterima tetapi tiada koordinat sah untuk dipaparkan.'
+          );
+          return;
+        }
+
+        // Save the titik semak data to the state
+        setTitikSemak(normalized as any[]);
         
-        // Simpan jumlah asal untuk kira peratus nanti
-        setTotalTitik((titik as any[])?.length ?? 0);
-  
+        // Save the total number of titik semak
+        setTotalTitik(normalized.length);
+        // Save the start time of the rondaan
+        setStartTime(Math.floor(Date.now() / 1000));
+        // Set the rondaan as active
         setIsRondaanActive(true);
-        setUserRoute([]); // Reset rute
+        // Reset the user route
+        setUserRoute([]); 
         Alert.alert("Mula", "Data titik semak berjaya dimuat turun.");
       }
     } catch (error: any) {
@@ -52,12 +203,16 @@ export default function HomeMapScreen() {
     }
   };
 
+  // Function to end the rondaan
   const onTamatRondaan = async () => {
-    if (totalTitik === 0) return;
-  
-    const baki = titikSemak.length;
-    const diselesaikan = totalTitik - baki;
-    const peratus = Math.round((diselesaikan / totalTitik) * 100);
+    // If there are no titik semak, return
+    if (totalTitik === 0 || startTime === null) return;
+
+    const { peratus, durasi } = calculatePatrolStats(
+      totalTitik, 
+      titikSemak.length, 
+      startTime
+    );
   
     Alert.alert("Tamat Rondaan", `Selesaikan ${peratus}% rondaan?`, [
       { text: "Batal", style: "cancel" },
@@ -68,9 +223,13 @@ export default function HomeMapScreen() {
             const response = await postSimpanRondaan(session?.token ?? '', {
               path: userRoute,
               peratus: peratus,
-              durasi: '10:00', // fix later
+              durasi,
             });
-            if (response?.success) {
+            const ok =
+              response?.success === true ||
+              response?.status === 'success' ||
+              response?.status === true;
+            if (ok) {
               setIsRondaanActive(false);
               setTitikSemak([]);
               setUserRoute([]);
@@ -111,6 +270,39 @@ export default function HomeMapScreen() {
           />
         </Suspense>
 
+        {isScanning && (
+          <View className="absolute inset-0 bg-black">
+            <CameraView
+              onBarcodeScanned={handleBarCodeScanned}
+              style={{ flex: 1 }}
+            />
+
+            <SafeAreaView className="absolute left-0 right-0 top-0">
+              <View className="px-4 py-3">
+                <Text className="text-center text-base font-extrabold text-white">
+                  Imbas Kod Qr
+                </Text>
+                <Text className="mt-2 text-center text-xs text-white/80">
+                  Halakan Kod QR Titik Semak Dalam Kotak Yang Disediakan
+                </Text>
+              </View>
+            </SafeAreaView>
+
+            <SafeAreaView className="absolute bottom-0 left-0 right-0">
+              <View className="px-4 pb-6">
+                <Pressable
+                  onPress={() => setIsScanning(false)}
+                  className="items-center rounded-full bg-white/90 px-4 py-3"
+                >
+                  <Text className="text-sm font-extrabold text-slate-900">
+                    TUTUP
+                  </Text>
+                </Pressable>
+              </View>
+            </SafeAreaView>
+          </View>
+        )}
+
         <SafeAreaView className="absolute left-0 right-0 top-0 bg-white">
           <DashboardHeader />
         </SafeAreaView>
@@ -133,7 +325,13 @@ export default function HomeMapScreen() {
               <Fab 
                 label="IMBAS" 
                 icon={<ScanLine size={18} color="#0F172A" />} 
-                onPress={() => Alert.alert("Imbas", "Buka Kamera...")} 
+                onPress={() => {
+                  if (permission?.granted === false) {
+                    Alert.alert('Ralat', 'Keizinan kamera diperlukan untuk imbas QR.');
+                    return;
+                  }
+                  setIsScanning(true);
+                }}
               />
             </>
           )}
