@@ -159,8 +159,12 @@ export default function HomeMapScreen() {
   // Function to start the rondaan
   const onMulaRondaan = async () => {
     try {
+      if (!session?.token) {
+        Alert.alert('Ralat', 'Sesi tidak sah. Sila log masuk semula.');
+        return;
+      }
       
-      const responseTitikSemak = await getTitikSemak(session?.token ?? '');
+      const responseTitikSemak = await getTitikSemak(session.token);
       
       if (responseTitikSemak) {
         const titik =
@@ -207,6 +211,10 @@ export default function HomeMapScreen() {
   const onTamatRondaan = async () => {
     // If there are no titik semak, return
     if (totalTitik === 0 || startTime === null) return;
+    if (!session?.token) {
+      Alert.alert('Ralat', 'Sesi anda telah tamat. Sila log masuk semula.');
+      return;
+    }
 
     const { peratus, durasi } = calculatePatrolStats(
       totalTitik, 
@@ -220,7 +228,7 @@ export default function HomeMapScreen() {
         text: "Simpan", 
         onPress: async () => {
           try {
-            const response = await postSimpanRondaan(session?.token ?? '', {
+            const response = await postSimpanRondaan(session.token, {
               path: userRoute,
               peratus: peratus,
               durasi,

@@ -59,7 +59,7 @@ export default function MapsDashboard({
         subscription = await Location.watchPositionAsync(
           { 
             accuracy: Location.Accuracy.High, 
-            distanceInterval: 5 // Kemaskini setiap 5 meter pergerakan
+            distanceInterval: 3 // Kemaskini setiap 3 meter pergerakan
           },
           (location) => {
             const newPoint = {
@@ -85,6 +85,20 @@ export default function MapsDashboard({
     ? { ...coords, latitudeDelta: DELTA, longitudeDelta: DELTA }
     : FALLBACK_REGION;
 
+  const normalizeCoord = (point: any): Coords | null => {
+    const latRaw =
+      point?.latitude ?? point?.latitud ?? point?.fld_loc_latitud ?? point?.lat;
+    const lngRaw =
+      point?.longitude ??
+      point?.longitud ??
+      point?.fld_loc_longitud ??
+      point?.long;
+    const latitude = typeof latRaw === 'number' ? latRaw : Number(latRaw);
+    const longitude = typeof lngRaw === 'number' ? lngRaw : Number(lngRaw);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude };
+  };
+
   return (
     <View className="flex-1">
       <MapView
@@ -98,23 +112,33 @@ export default function MapsDashboard({
           <Polyline 
             coordinates={userRoute} 
             strokeWidth={4} 
-            strokeColor="#1F7BFF" 
+            strokeColor="#1F7BFF"
+            geodesic={true} 
+            lineJoin="round"
           />
         )}
 
-        {/* LUKIS TITIK SEMAK: Marker akan hilang secara automatik bila titikSemak dikemaskini */}
-        {titikSemak.map((point: any, idx: number) => (
-          <Marker 
-            key={(() => {
-              const coordKey = `${point?.latitude},${point?.longitude}`;
-              const rawKey = point?.id ?? point?.qr ?? (coordKey !== 'undefined,undefined' ? coordKey : idx);
-              return String(rawKey);
-            })()} 
-            coordinate={{ latitude: point.latitude, longitude: point.longitude }}
-            pinColor="red"
-            title="Titik Semak"
-          />
-        ))}
+        {/* LUKIS TITIK SEMAK: Marker akan hilang secara automatik bila `titikSemak` (prop) dikemaskini */}
+        {titikSemak.map((point: any, idx: number) => {
+          const coord = normalizeCoord(point);
+          if (!coord) return null;
+          return (
+            <Marker
+              key={(() => {
+                const coordKey = `${coord.latitude},${coord.longitude}`;
+                const rawKey =
+                  point?.id ??
+                  point?.fld_loc_id ??
+                  point?.qr ??
+                  (coordKey !== 'undefined,undefined' ? coordKey : idx);
+                return String(rawKey);
+              })()}
+              coordinate={coord}
+              pinColor="red"
+              title={point?.name ?? point?.fld_loc_nama ?? 'Titik Semak'}
+            />
+          );
+        })}
       </MapView>
 
       {locating && (

@@ -1,20 +1,8 @@
 import axios from 'axios';
 
-function normalizeApiBaseUrl(raw?: string) {
-  const fallback = 'http://20.17.177.115/api/pengawal';
-  const input = (raw ?? '').trim();
-  if (!input) return fallback;
-
-  // Allow devs to set either:
-  // - http://host/api
-  // - http://host/api/pengawal
-  // and always end up with .../api/pengawal
-  const withoutTrailingSlash = input.replace(/\/+$/, '');
-  if (withoutTrailingSlash.endsWith('/api')) return `${withoutTrailingSlash}/pengawal`;
-  return withoutTrailingSlash;
-}
-
-const baseURL = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
+const baseURL =
+  (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').trim() ||
+  'http://20.17.177.115/api/pengawal';
 
 export const api = axios.create({
   baseURL,
@@ -83,6 +71,26 @@ export const getTitikSemak = async (token: string) => {
   }
 };
 
+export const calculatePatrolStats = (totalPoints: number, remainingPoints: number, startTime: number) => {
+  // 1. Kira Peratusan
+  const completedPoints = totalPoints - remainingPoints;
+  const peratus = totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0;
+
+  // 2. Kira Durasi (HH:MM:SS)
+  const endTime = Math.floor(Date.now() / 1000);
+  const totalSeconds = endTime - startTime;
+  
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  const durasi = [hrs, mins, secs]
+    .map(v => v < 10 ? "0" + v : v)
+    .join(":");
+
+  return { peratus, durasi };
+};
+
 export const postSimpanRondaan = async (
   token: string, 
   payload: { path: any[]; peratus: number; durasi: string }
@@ -117,6 +125,26 @@ export const postSOS = async (token: string, location: any) => {
     throw error;
   }
 };
+
+export type SahkanTitikPayload = {
+  fld_loc_id: string | number;
+  qr_code: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type SahkanTitikResponse = {
+  success: boolean;
+  message?: string;
+  data?: any;
+};
+
+export async function postSahkanTitik(token: string, payload: SahkanTitikPayload) {
+  const res = await api.post<SahkanTitikResponse>('sahkan-titik', payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
 
 export async function postUpdateProfile(token: string, data: { name: string; email: string; phone: string; ic: string }) {
   const candidates = ['update-profile', 'update_profile', 'updateProfile'] as const;

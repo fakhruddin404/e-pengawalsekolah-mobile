@@ -10,8 +10,14 @@ const androidApiKey =
 module.exports = {
   expo: {
     ...appJson.expo,
+    plugins: Array.from(
+      new Set([...(appJson.expo.plugins ?? []), 'expo-camera'])
+    ),
     android: {
       ...appJson.expo.android,
+      permissions: Array.from(
+        new Set([...(appJson.expo.android?.permissions ?? []), 'CAMERA'])
+      ),
       config: {
         ...appJson.expo.android?.config,
         googleMaps: {
