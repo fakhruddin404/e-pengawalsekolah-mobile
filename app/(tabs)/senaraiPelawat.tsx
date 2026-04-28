@@ -1,86 +1,112 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Image,
   Pressable,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Calendar, Clock, Plus, Search } from 'lucide-react-native';
 
 import { AppText } from '../../components/AppText';
 import { textVariants } from '../../theme/typography';
 import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { DashboardHeader } from '../../components/DashboardHeader';
+import { useAuth } from '../../context/AuthContext';
+import { getPelawatAktifUi, postKeluarPasLawatan } from '../../services';
 
 const CARD_BG = palette.surface;
 const TAG_BG = palette.surfaceAlt;
 const PRIMARY = palette.primary;
 const ICON_BUTTON_BG = '#E8F1FF';
 
-type Visitor = {
-  id: string;
-  name: string;
-  purpose: string;
-  plate: string;
-  dateLabel: string;
-  durationLabel: string;
-  avatarUri: string;
-};
+type PelawatAktif = Awaited<ReturnType<typeof getPelawatAktifUi>>[number];
 
-const MOCK_VISITORS: Visitor[] = [
-  {
-    id: '1',
-    name: 'Aminah',
-    purpose: 'Hantar makanan',
-    plate: 'TTB1234',
-    dateLabel: 'Sunday, 12 June',
-    durationLabel: '1 jam 30 minit',
-    avatarUri: 'https://i.pravatar.cc/120?img=47',
-  },
-  {
-    id: '2',
-    name: 'Amirul',
-    purpose: 'Hantar Anak',
-    plate: 'WWW1234',
-    dateLabel: 'Sunday, 12 June',
-    durationLabel: '1 jam 30 minit',
-    avatarUri: 'https://i.pravatar.cc/120?img=33',
-  },
-  {
-    id: '3',
-    name: 'Aina',
-    purpose: 'Hantar Anak',
-    plate: 'WWW1234',
-    dateLabel: 'Sunday, 12 June',
-    durationLabel: '1 jam 30 minit',
-    avatarUri: 'https://i.pravatar.cc/120?img=45',
-  },
-];
-
-export default function SenaraiPelawatScreen() {
+export default function SenaraiPelawatAktif() {
+  const router = useRouter();
+  const { session } = useAuth();
+  const token = session?.token ?? '';
   const [query, setQuery] = useState('');
+  const [items, setItems] = useState<PelawatAktif[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
+  async function load() {
+    if (!token) return;
+    setLoadError(null);
+    setLoading(true);
+    try {
+      const res = await getPelawatAktifUi(token);
+      setItems(res);
+    } catch (e: any) {
+      setLoadError(e?.message ?? 'Gagal memuatkan senarai pelawat.');
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function confirmKeluar(id: string, name: string) {
+    if (!token) {
+      Alert.alert('Ralat', 'Sesi tamat. Sila log masuk semula.');
+      return;
+    }
+
+    Alert.alert('Keluar', `Rekod keluar untuk ${name}?`, [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Keluar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await postKeluarPasLawatan(token, id);
+            await load();
+            Alert.alert('Berjaya', 'Pelawat telah direkod keluar.');
+          } catch (e: any) {
+            Alert.alert('Ralat', e?.message ?? 'Gagal rekod keluar. Sila cuba lagi.');
+          }
+        },
+      },
+    ]);
+  }
+
+  useEffect(() => {
+    if (!token) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const searchPelawatAktif = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return MOCK_VISITORS;
-    return MOCK_VISITORS.filter(
+    if (!q) return items;
+    return items.filter(
       (v) =>
         v.name.toLowerCase().includes(q) ||
         v.purpose.toLowerCase().includes(q) ||
         v.plate.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [items, query]);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <DashboardHeader />
 
       <FlatList
-        data={filtered}
+        data={searchPelawatAktif}
         keyExtractor={(item) => item.id}
+        refreshing={refreshing}
+        onRefresh={async () => {
+          if (!token) return;
+          setRefreshing(true);
+          try {
+            await load();
+          } finally {
+            setRefreshing(false);
+          }
+        }}
         contentContainerStyle={{
           paddingHorizontal: spacing.md,
           paddingBottom: spacing.xl,
@@ -116,7 +142,7 @@ export default function SenaraiPelawatScreen() {
               </View>
 
               <Pressable
-                onPress={() => Alert.alert('Tambah pelawat', 'Coming soon')}
+                onPress={() => router.push('/(tabs)/createPasLawatan')}
                 className="ml-3 flex-row items-center"
                 style={{
                   backgroundColor: ICON_BUTTON_BG,
@@ -132,18 +158,25 @@ export default function SenaraiPelawatScreen() {
                   className="ml-2"
                   style={{ fontWeight: '800', color: PRIMARY }}
                 >
-                  Tambah
+                  Pas
                 </AppText>
               </Pressable>
             </View>
+            {loadError ? (
+              <AppText
+                variant="caption"
+                className="mt-2"
+                style={{ color: '#DC2626', textAlign: 'center' }}
+              >
+                {loadError}
+              </AppText>
+            ) : null}
           </View>
         }
         renderItem={({ item }) => (
           <VisitorCard
             visitor={item}
-            onKeluar={() =>
-              Alert.alert('Keluar', `Rekod keluar untuk ${item.name}?`)
-            }
+            onKeluar={() => confirmKeluar(item.id, item.name)}
           />
         )}
         ItemSeparatorComponent={() => <View className="h-3" />}
@@ -153,7 +186,7 @@ export default function SenaraiPelawatScreen() {
             className="py-8 text-center"
             style={{ color: '#64748b' }}
           >
-            Tiada pelawat dijumpai.
+            {loading ? 'Memuatkan…' : 'Tiada pelawat dijumpai.'}
           </AppText>
         }
       />
@@ -165,7 +198,7 @@ function VisitorCard({
   visitor,
   onKeluar,
 }: {
-  visitor: Visitor;
+  visitor: PelawatAktif;
   onKeluar: () => void;
 }) {
   return (
@@ -181,28 +214,22 @@ function VisitorCard({
         ...shadows.card,
       }}
     >
-      <View className="flex-row">
-        <Image
-          source={{ uri: visitor.avatarUri }}
-          className="h-14 w-14 rounded-full bg-slate-200"
-        />
-        <View className="ml-3 flex-1">
-          <AppText variant="body" style={{ fontWeight: '700', color: PRIMARY }}>
-            {visitor.name}
+      <View>
+        <AppText variant="body" style={{ fontWeight: '700', color: PRIMARY }}>
+          {visitor.name}
+        </AppText>
+        <AppText variant="bodySm" className="mt-0.5" style={{ color: '#334155' }}>
+          <AppText variant="bodySm" style={{ fontWeight: '600', color: '#1e293b' }}>
+            Tujuan:{' '}
           </AppText>
-          <AppText variant="bodySm" className="mt-0.5" style={{ color: '#334155' }}>
-            <AppText variant="bodySm" style={{ fontWeight: '600', color: '#1e293b' }}>
-              Tujuan:{' '}
-            </AppText>
-            {visitor.purpose}
+          {visitor.purpose}
+        </AppText>
+        <AppText variant="bodySm" className="mt-0.5" style={{ color: '#334155' }}>
+          <AppText variant="bodySm" style={{ fontWeight: '600', color: '#1e293b' }}>
+            No. Plat:{' '}
           </AppText>
-          <AppText variant="bodySm" className="mt-0.5" style={{ color: '#334155' }}>
-            <AppText variant="bodySm" style={{ fontWeight: '600', color: '#1e293b' }}>
-              No. Plat:{' '}
-            </AppText>
-            {visitor.plate}
-          </AppText>
-        </View>
+          {visitor.plate}
+        </AppText>
       </View>
 
       <View className="mt-4 flex-row flex-wrap gap-2">

@@ -13,3 +13,26 @@ export const api = axios.create({
   },
 });
 
+export function formatAxiosError(e: any, fallback: string) {
+  const status = e?.response?.status as number | undefined;
+
+  const data = e?.response?.data;
+  const msgFromLaravel =
+    (typeof data?.message === 'string' && data.message) ||
+    (typeof data?.error === 'string' && data.error) ||
+    null;
+
+  if (msgFromLaravel) {
+    return status ? `${msgFromLaravel} (HTTP ${status})` : msgFromLaravel;
+  }
+
+  if (status === 403) {
+    return 'Akses ditolak (403). Akaun anda mungkin tidak mempunyai kebenaran untuk tindakan ini.';
+  }
+  if (status === 401) {
+    return 'Sesi tidak sah (401). Sila log masuk semula.';
+  }
+
+  return e?.message ?? fallback;
+}
+
