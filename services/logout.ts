@@ -10,16 +10,15 @@ export async function performLogout(opts: {
 }) {
   const { session, setSession, router } = opts;
 
-  // Best-effort server token revocation. Local logout must always succeed.
+  // Logout from the server
   const token = session?.token;
   if (token) {
     try {
       await postLogout(token);
     } catch {
-      // ignore
     }
   }
-
+  // Set the session to null and redirect to the login screen
   setSession(null);
   router.replace('/login');
 }

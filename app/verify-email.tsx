@@ -20,7 +20,6 @@ export default function VerifyEmailScreen() {
     performLogout({ session, setSession, router });
   };
 
-  // Fungsi untuk hantar semula pautan
   async function onResendEmail() {
     if (!session?.token || sending) return;
     setSending(true);

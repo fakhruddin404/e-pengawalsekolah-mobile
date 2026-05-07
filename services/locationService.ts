@@ -5,26 +5,41 @@ import { api, formatAxiosError } from './apiClient';
 export type LocationPingPayload = {
   latitude: number;
   longitude: number;
-  accuracy?: number | null;
-  altitude?: number | null;
-  heading?: number | null;
-  speed?: number | null;
   timestamp: string; // ISO string
 };
 
 export type StartLocationPingOptions = {
+  /**
+   * Minimum movement in meters before sending again.
+   * Default: 5 meters.
+   */
   distanceIntervalM?: number;
-  enSendsMs?: number;
+  /**
+   * Optional minimum time between sends (ms) to avoid spamming if GPS is noisy.
+   * Default: 10 seconds.
+   */
+  minTimeBetweenSendsMs?: number;
+  /**
+   * API endpoint path (relative to api baseURL).
+   * Default: 'location-ping'
+   */
+  endpointPath?: string;
+  /**
+   * Location accuracy used by expo-location.
+   * Default: Balanced (battery-friendly).
+   */
   accuracy?: Location.LocationAccuracy;
 };
 
+// process nk post
 export async function postLocationPing(
   token: string,
   payload: LocationPingPayload,
+  endpointPath = 'location-ping'
 ) {
   try {
     const res = await api.post<any>(
-      'location-ping',
+      endpointPath,
       payload, 
       {
       headers: { Authorization: `Bearer ${token}` },
@@ -40,10 +55,6 @@ function toPingPayload(pos: Location.LocationObject): LocationPingPayload {
   return {
     latitude: pos.coords.latitude,
     longitude: pos.coords.longitude,
-    accuracy: pos.coords.accuracy ?? null,
-    altitude: pos.coords.altitude ?? null,
-    heading: pos.coords.heading ?? null,
-    speed: pos.coords.speed ?? null,
     timestamp: new Date(pos.timestamp).toISOString(),
   };
 }
@@ -92,6 +103,15 @@ export function startLocationPing(token: string, opts: StartLocationPingOptions 
     if (perm.status !== 'granted') {
       const req = await Location.requestForegroundPermissionsAsync();
       if (req.status !== 'granted') return;
+    }
+
+    // Send once immediately after login so website can show location
+    // even before the user moves 5m.
+    try {
+      const firstPos = await Location.getCurrentPositionAsync({ accuracy });
+      await safeSend(firstPos);
+    } catch {
+      // ignore
     }
 
     subscription = await Location.watchPositionAsync(

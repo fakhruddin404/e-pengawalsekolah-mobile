@@ -5,7 +5,7 @@
     "scheme": "epsmobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/splash.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -17,6 +17,9 @@
       "bundleIdentifier": "com.anonymous.epsmobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Lokasi diperlukan untuk mengesahkan anda berada dalam kawasan sekolah.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
         "ITSAppUsesNonExemptEncryption": false
       },
       "supportsTablet": true

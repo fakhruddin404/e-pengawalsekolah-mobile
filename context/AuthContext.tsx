@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
+// define user session data
 export type AuthSession = {
   token: string;
   displayName: string;

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {ActivityIndicator, Alert, Image, Pressable, TextInput, View} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 
@@ -9,7 +8,7 @@ import { AppText } from '../components/AppText';
 import { textVariants } from '../theme/typography';
 import { palette, radii, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { postLogin } from '../services';
+import { loginWithLocation } from '../services';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -30,80 +29,47 @@ export default function LoginScreen() {
     if (!canSubmit) return;
     
     setLoading(true);
-    // if boleh submit try will running
     try {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      if (perm.status !== 'granted') {
+      const result = await loginWithLocation({
+        login: email,
+        password,
+      });
+
+      if (!result.ok) {
         Alert.alert(
           'Kebenaran Lokasi Diperlukan',
           'Sila benarkan akses lokasi untuk meneruskan log masuk.'
         );
         return;
       }
-      // Get the current position
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      // Create the current position object
-      const current = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      };
-      // Post the login data to the API and get the response(masuk dlm loginData)
-      const loginData = await postLogin({
-        login: email.trim(),
-        password,
-        lat: current.latitude,
-        long: current.longitude,
-      });
 
-      // Get the display name from the login data
-      const displayName =
-        loginData.pengawal?.nama?.trim() || loginData.user?.name?.trim() || '';
-      // Set the session data(masuk dlm setSession)
-      setSession({
-        token: loginData.token,
-        displayName: displayName || 'Pengawal',
-        photoUrl: loginData.pengawal?.photo_url ?? null,
-        email: loginData.user?.email ?? null,
-        phone: loginData.pengawal?.fld_pgw_noTelefon ?? null,
-        ic: loginData.pengawal?.fld_pgw_noIC ?? null,
-        isEmailVerified: loginData.user?.email_verified_at !== null,
-      });
-      // --- LOGIK SOFT LOGIN BERMULA DI SINI ---
-      if (loginData.user?.email_verified_at === null) {
+      setSession(result.session);
+      if (result.needsEmailVerification) {
         // Jika belum verify, redirect ke skrin Verify Email
-        // (Pastikan anda ganti '/verify-email' dengan laluan fail skrin anda yang sebenar)
         setTimeout(() => router.replace('/verify-email'), 0); 
       } else {
         // Jika dah verify, masuk ke Dashboard macam biasa
         setTimeout(() => router.replace('/(tabs)/sesiRondaan'), 0);
       }
-      // ---------------------------------------
+
     } catch (e: any) {
       const data = e?.response?.data;
-      
-      // Default generic message
+
       let message: string = 'Log masuk gagal. Sila cuba lagi.';
     
-      // 1. Check if it's a Validation Error (Status 422)
+      // Check if it's a Validation Error (Status 422)
       if (e?.response?.status === 422 && data?.errors) {
-        /**
-         * Laravel sends: 
-         * "errors": { "login": ["Akaun ini bukan pengawal."] }
-         * We want that first string inside the first array.
-         */
         const errorEntries = Object.values(data.errors); 
         if (errorEntries.length > 0) {
           const firstErrorArray = errorEntries[0] as string[];
-          message = firstErrorArray[0]; // Gets: "Akaun ini bukan pengawal."
+          message = firstErrorArray[0];
         }
       } 
-      // 2. Fallback to Laravel's top-level message if provided
+      // Fallback to Laravel's top-level message if provided
       else if (data?.message) {
         message = data.message;
       } 
-      // 3. Fallback to the Axios/Network error message
+      // Fallback to the Axios/Network error message
       else if (e?.message) {
         message = e.message;
       }

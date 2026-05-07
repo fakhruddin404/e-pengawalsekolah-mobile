@@ -1,4 +1,7 @@
 import { api } from './apiClient';
+import * as Location from 'expo-location';
+
+import type { AuthSession } from '../context/AuthContext';
 
 export type LoginPayload = {
   login: string;
@@ -14,7 +17,6 @@ export type LoginResponse = {
     id: number;
     name: string;
     email: string;
-    role: string;
     email_verified_at: string | null;
   };
   pengawal: {
@@ -23,14 +25,60 @@ export type LoginResponse = {
     photo_url?: string | null;
     fld_pgw_noTelefon?: string;
     fld_pgw_noIC?: string;
-    fld_pgw_status?: string;
-    fld_pgw_statusSemasa?: string;
   };
 };
 
 export async function postLogin(payload: LoginPayload) {
-  const res = await api.post<LoginResponse>('login', payload);
+  const res = await api.post<LoginResponse>(
+    'login'
+    , payload
+  );
   return res.data;
+}
+
+export function toAuthSession(loginData: LoginResponse): AuthSession {
+  const displayName =
+    loginData.pengawal?.nama?.trim() || loginData.user?.name?.trim() || '';
+
+  return {
+    token: loginData.token,
+    displayName: displayName || 'Pengawal',
+    photoUrl: loginData.pengawal?.photo_url ?? null,
+    email: loginData.user?.email ?? null,
+    phone: loginData.pengawal?.fld_pgw_noTelefon ?? null,
+    ic: loginData.pengawal?.fld_pgw_noIC ?? null,
+    isEmailVerified: loginData.user?.email_verified_at !== null,
+  };
+}
+
+export async function loginWithLocation(opts: {
+  login: string;
+  password: string;
+}) {
+  const perm = await Location.requestForegroundPermissionsAsync();
+  if (perm.status !== 'granted') {
+    return { ok: false as const, reason: 'location_permission_denied' as const };
+  }
+
+  const pos = await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.High,
+  });
+
+  const loginData = await postLogin({
+    login: opts.login.trim(),
+    password: opts.password,
+    lat: pos.coords.latitude,
+    long: pos.coords.longitude,
+  });
+
+  const session = toAuthSession(loginData);
+  const needsEmailVerification = loginData.user?.email_verified_at === null;
+
+  return {
+    ok: true as const,
+    session,
+    needsEmailVerification,
+  };
 }
 
 export async function postSendEmailVerification(token: string) {
@@ -38,7 +86,9 @@ export async function postSendEmailVerification(token: string) {
     'email/verification-notification',
     {},
     {
-      headers: {Authorization: `Bearer ${token}`},
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
     }
   );
   return res.data as { message?: string };
