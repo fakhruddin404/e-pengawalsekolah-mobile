@@ -4,7 +4,9 @@ export * from './profileService';
 export * from './pelawatService';
 export * from './pasLawatanService';
 export * from './locationService';
+export * from './mapService';
 export * from './rondaanService';
+export * from './laporanService';
 export * from './sosService';
 export * from './logout';
 

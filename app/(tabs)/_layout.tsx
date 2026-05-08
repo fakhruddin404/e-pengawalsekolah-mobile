@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
+import { Easing } from 'react-native';
 
 import { MainTabBar } from '../../components/MainTabBar';
 import { useAuth } from '../../context/AuthContext';
@@ -33,6 +34,14 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
+        animation: 'fade',
+        transitionSpec: {
+          animation: 'timing',
+          config: {
+            duration: 300,
+            easing: Easing.inOut(Easing.ease),
+          },
+        },
       }}
     >
       <Tabs.Screen
@@ -55,6 +64,12 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="createPasLawatan"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="createLaporan"
         options={{
           href: null,
         }}

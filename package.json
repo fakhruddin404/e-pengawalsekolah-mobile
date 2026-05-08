@@ -11,6 +11,7 @@
     "eas:build:ios": "npx eas-cli build --profile development --platform ios"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "8.4.4",
     "axios": "^1.15.0",
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.33",

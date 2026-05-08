@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import {
   FileText,
   Play,
@@ -20,58 +21,19 @@ import { DashboardHeader } from '../../components/DashboardHeader';
 import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
 import {
-  getTitikSemak,
-  postSahkanTitik,
-  postSimpanRondaan,
   calculatePatrolStats,
+  prepareRondaanStartData,
+  submitRondaanRecord,
+  verifyCheckpointByQr,
+  type RondaanMapPoint,
 } from '../../services';
 
 const MapsDashboard = lazy(() => import('./MapsDashboard'));
 
-type TitikSemakMapPoint = {
-  id?: string | number;
-  name?: string;
-  latitude: number;
-  longitude: number;
-  raw?: any;
-};
-
-function toNumber(value: any): number | null {
-  const n =
-    typeof value === 'number'
-      ? value
-      : typeof value === 'string'
-        ? Number(value)
-        : Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeTitikSemakPoint(p: any): TitikSemakMapPoint | null {
-  const lat =
-    toNumber(p?.latitude) ??
-    toNumber(p?.latitud) ??
-    toNumber(p?.fld_loc_latitud) ??
-    toNumber(p?.lat);
-  const lng =
-    toNumber(p?.longitude) ??
-    toNumber(p?.longitud) ??
-    toNumber(p?.fld_loc_longitud) ??
-    toNumber(p?.long);
-
-  if (lat === null || lng === null) return null;
-
-  return {
-    id: p?.id ?? p?.fld_loc_id ?? p?.qr ?? undefined,
-    name: p?.name ?? p?.fld_loc_nama ?? undefined,
-    latitude: lat,
-    longitude: lng,
-    raw: p,
-  };
-}
-
 export default function HomeMapScreen() {
+  const router = useRouter();
   const [isRondaanActive, setIsRondaanActive] = useState(false);
-  const [titikSemak, setTitikSemak] = useState<any[]>([]);
+  const [titikSemak, setTitikSemak] = useState<RondaanMapPoint[]>([]);
   const [userRoute, setUserRoute] = useState<any[]>([]);
   const [totalTitik, setTotalTitik] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -101,18 +63,6 @@ export default function HomeMapScreen() {
         return;
       }
 
-      //get the scanned data
-      let qrObject;
-      try {
-        qrObject = JSON.parse(data);
-      } catch (e) {
-        Alert.alert('Ralat', 'Format kod QR tidak sah (Bukan JSON).');
-        return;
-      }
-
-      const fld_loc_id = qrObject.id; 
-      const qr_code = qrObject.secret;
-      
       //request permission to use location
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -124,32 +74,26 @@ export default function HomeMapScreen() {
         accuracy: Location.Accuracy.Highest,
       });
 
-      // Hantar terus ke API
-      const res = await postSahkanTitik(session.token, {
-        fld_loc_id: fld_loc_id, 
-        qr_code: qr_code,
+      const verify = await verifyCheckpointByQr(
+        session.token,
+        data, {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       });
+      const res = verify.response;
 
       // jawapan dari API
       if (res?.success === true) {
         setTitikSemak((prev) =>
           //remove the titik semak from the list
-          (Array.isArray(prev) ? prev : []).filter((p: any) => {
-            const id = (p?.id ?? p?.fld_loc_id ?? '').toString();
-            return id !== fld_loc_id.toString();
-          })
+          (Array.isArray(prev) ? prev : []).filter((p) => p.id.toString() !== verify.fld_loc_id.toString())
         );
         Alert.alert('Berjaya', res?.message ?? 'Titik semak disahkan.');
       } else {
         Alert.alert('Ralat', res?.message ?? 'Pengesahan gagal. Anda mungkin terlalu jauh dari titik semak.');
       }
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ??
-        error?.message ??
-        'Gagal mengesahkan titik semak.';
+      const msg = error?.message ?? 'Gagal mengesahkan titik semak.';
       Alert.alert('Ralat', msg);
     } finally {
       setTimeout(() => {
@@ -166,45 +110,25 @@ export default function HomeMapScreen() {
         return;
       }
       
-      const responseTitikSemak = await getTitikSemak(session.token);
-      
-      if (responseTitikSemak) {
-        const titik =
-          Array.isArray((responseTitikSemak as any)?.data) ? (responseTitikSemak as any).data : responseTitikSemak;
-
-        // Normalize the titik semak data
-        const normalized = (Array.isArray(titik) ? titik : [])
-          .map(normalizeTitikSemakPoint)// susun comey bare ni nk paka lamo
-          .filter(Boolean) as TitikSemakMapPoint[];
-
-        if (normalized.length === 0) {
-          Alert.alert(
-            'Ralat',
-            'Data titik semak diterima tetapi tiada koordinat sah untuk dipaparkan.'
-          );
-          return;
-        }
-
-        // Save the titik semak data to the state
-        setTitikSemak(normalized as any[]);
-        
-        // Save the total number of titik semak
-        setTotalTitik(normalized.length);
-        // Save the start time of the rondaan
-        setStartTime(Math.floor(Date.now() / 1000));
-        // Set the rondaan as active
-        setIsRondaanActive(true);
-        // Reset the user route
-        setUserRoute([]); 
-        Alert.alert("Mula", "Data titik semak berjaya dimuat turun.");
+      const normalized = await prepareRondaanStartData(session.token);
+      if (normalized.length === 0) {
+        Alert.alert('Ralat', 'Data titik semak diterima tetapi tiada koordinat sah untuk dipaparkan.');
+        return;
       }
+
+      // Save the titik semak data to the state
+      setTitikSemak(normalized);
+      // Save the total number of titik semak
+      setTotalTitik(normalized.length);
+      // Save the start time of the rondaan
+      setStartTime(Math.floor(Date.now() / 1000));
+      // Set the rondaan as active
+      setIsRondaanActive(true);
+      // Reset the user route
+      setUserRoute([]);
+      Alert.alert('Mula', 'Data titik semak berjaya dimuat turun.');
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ??
-        error?.response?.data?.error ??
-        (error?.response?.status ? `HTTP ${error.response.status}` : null) ??
-        error?.message ??
-        'Gagal mengambil data titik semak dari server.';
+      const msg = error?.message ?? 'Gagal mengambil data titik semak dari server.';
       Alert.alert("Ralat", msg);
     }
   };
@@ -230,30 +154,21 @@ export default function HomeMapScreen() {
         text: "Simpan", 
         onPress: async () => {
           try {
-            const response = await postSimpanRondaan(session.token, {
+            const result = await submitRondaanRecord(session.token, {
               path: userRoute,
               peratus: peratus,
               durasi,
             });
-            const ok =
-              response?.success === true ||
-              response?.status === 'success' ||
-              response?.status === true;
-            if (ok) {
+            if (result.ok) {
               setIsRondaanActive(false);
               setTitikSemak([]);
               setUserRoute([]);
-              Alert.alert("Selesai", "Rekod rondaan telah dihantar ke sistem.");
+              Alert.alert("Selesai", result.message);
             } else {
-              Alert.alert("Ralat", response?.message ?? "Gagal simpan rondaan.");
+              Alert.alert("Ralat", result.message);
             }
           } catch (error: any) {
-            const msg =
-              error?.response?.data?.message ??
-              error?.response?.data?.error ??
-              (error?.response?.status ? `HTTP ${error.response.status}` : null) ??
-              error?.message ??
-              'Gagal simpan rondaan.';
+            const msg = error?.message ?? 'Gagal simpan rondaan.';
             Alert.alert('Ralat', msg);
           }
         }
@@ -355,7 +270,11 @@ export default function HomeMapScreen() {
           )}
           
           <View className="h-3" />
-          <Fab label="LAPORAN" icon={<FileText size={18} color={palette.text} />} />
+          <Fab
+            label="LAPORAN"
+            icon={<FileText size={18} color={palette.text} />}
+            onPress={() => router.push('/(tabs)/createLaporan')}
+          />
           
           <View className="h-3" />
           <Fab

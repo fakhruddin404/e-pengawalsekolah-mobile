@@ -1,25 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 
 import { AppText } from '../../components/AppText';
+import {
+  animateRegionTo,
+  createAnimatedMapRegion,
+  getHighRefreshWatchOptions,
+  getMapMarkerKey,
+  getMapMarkerTitle,
+  normalizeMapCoord,
+  setRegionToCoords,
+  toCoordsFromLocation,
+  type MapCoords,
+} from '../../services';
 
-type Coords = { latitude: number; longitude: number };
-
-const DELTA = 0.012;
-const FALLBACK_REGION = {
-  latitude: 3.139,
-  longitude: 101.6869,
-  latitudeDelta: 6,
-  longitudeDelta: 6,
-};
+const AnimatedMapView = MapView.Animated;
 
 interface MapsDashboardProps {
   isRondaanActive: boolean;
   titikSemak: any[]; // Anda boleh tukar 'any' kepada interface TitikSemak jika ada
-  userRoute: Coords[];
-  setUserRoute: React.Dispatch<React.SetStateAction<Coords[]>>;
+  userRoute: MapCoords[];
+  setUserRoute: React.Dispatch<React.SetStateAction<MapCoords[]>>;
 }
 
 export default function MapsDashboard({ 
@@ -28,12 +31,15 @@ export default function MapsDashboard({
   userRoute = [], 
   setUserRoute 
 }: MapsDashboardProps) {
-  const [coords, setCoords] = useState<Coords | null>(null);
+  const region = useRef(createAnimatedMapRegion()).current;
+  const [coords, setCoords] = useState<MapCoords | null>(null);
   const [permDenied, setPermDenied] = useState(false);
   const [locating, setLocating] = useState(true);
 
-  // 1. Dapatkan lokasi awal sekali sahaja semasa komponen dimuatkan
+  // 1. Dapatkan lokasi awal + start high-refresh watch untuk sync map region
   useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -41,44 +47,36 @@ export default function MapsDashboard({
           setPermDenied(true);
           return;
         }
-        const pos = await Location.getCurrentPositionAsync({});
-        setCoords({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
+
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.BestForNavigation,
         });
+        const firstPoint = toCoordsFromLocation(pos);
+        setCoords(firstPoint);
+        setRegionToCoords(region, firstPoint);
+
+        subscription = await Location.watchPositionAsync(
+          getHighRefreshWatchOptions(),
+          (location) => {
+            const nextPoint = toCoordsFromLocation(location);
+
+            setCoords(nextPoint);
+            animateRegionTo(region, nextPoint, 300);
+
+            if (isRondaanActive) {
+              setUserRoute((prev: MapCoords[]) => [...prev, nextPoint]);
+            }
+          }
+        );
       } finally {
         setLocating(false);
       }
     })();
-  }, []);
-
-  // 2. Logik Plotting Rute (Hanya berjalan jika isRondaanActive = true)
-  useEffect(() => {
-    let subscription: any;
-
-    if (isRondaanActive) {
-      (async () => {
-        subscription = await Location.watchPositionAsync(
-          { 
-            accuracy: Location.Accuracy.High, 
-            distanceInterval: 3 // Kemaskini setiap 3 meter pergerakan
-          },
-          (location) => {
-            const newPoint = {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            };
-            // Simpan rute baru ke dalam array untuk dilukis oleh Polyline
-            setUserRoute((prev: Coords[]) => [...prev, newPoint]);
-          }
-        );
-      })();
-    }
 
     return () => {
-      if (subscription) subscription.remove();
+      subscription?.remove();
     };
-  }, [isRondaanActive]);
+  }, [isRondaanActive, region, setUserRoute]);
 
   if (Platform.OS === 'web')
     return (
@@ -97,31 +95,14 @@ export default function MapsDashboard({
       </View>
     );
 
-  const initialRegion = coords
-    ? { ...coords, latitudeDelta: DELTA, longitudeDelta: DELTA }
-    : FALLBACK_REGION;
-
-  const normalizeCoord = (point: any): Coords | null => {
-    const latRaw =
-      point?.latitude ?? point?.latitud ?? point?.fld_loc_latitud ?? point?.lat;
-    const lngRaw =
-      point?.longitude ??
-      point?.longitud ??
-      point?.fld_loc_longitud ??
-      point?.long;
-    const latitude = typeof latRaw === 'number' ? latRaw : Number(latRaw);
-    const longitude = typeof lngRaw === 'number' ? lngRaw : Number(lngRaw);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-    return { latitude, longitude };
-  };
-
   return (
     <View className="flex-1">
-      <MapView
+      <AnimatedMapView
         style={{ flex: 1 }}
-        initialRegion={initialRegion}
+        region={region}
         showsUserLocation
         showsMyLocationButton={Platform.OS === 'android'}
+        followsUserLocation
       >
         {/* LUKIS RUTE: Hanya jika ada data dalam userRoute */}
         {userRoute.length > 0 && (
@@ -136,26 +117,18 @@ export default function MapsDashboard({
 
         {/* LUKIS TITIK SEMAK: Marker akan hilang secara automatik bila `titikSemak` (prop) dikemaskini */}
         {titikSemak.map((point: any, idx: number) => {
-          const coord = normalizeCoord(point);
+          const coord = normalizeMapCoord(point);
           if (!coord) return null;
           return (
             <Marker
-              key={(() => {
-                const coordKey = `${coord.latitude},${coord.longitude}`;
-                const rawKey =
-                  point?.id ??
-                  point?.fld_loc_id ??
-                  point?.qr ??
-                  (coordKey !== 'undefined,undefined' ? coordKey : idx);
-                return String(rawKey);
-              })()}
+              key={getMapMarkerKey(point, coord, idx)}
               coordinate={coord}
               pinColor="red"
-              title={point?.name ?? point?.fld_loc_nama ?? 'Titik Semak'}
+              title={getMapMarkerTitle(point)}
             />
           );
         })}
-      </MapView>
+      </AnimatedMapView>
 
       {locating && (
         <View className="absolute inset-0 items-center justify-center bg-white/60">
