@@ -1,20 +1,25 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 
 import { AppText } from '../components/AppText';
+import { useAuth } from '../context/AuthContext';
+import { formatAxiosError, postChangePassword, postForgotPassword } from '../services';
 import { textVariants } from '../theme/typography';
 
 const INPUT_BG = '#F0F4FF';
 
 export default function PasswordManagerScreen() {
   const router = useRouter();
+  const { session } = useAuth();
+  const token = session?.token ?? '';
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -22,11 +27,63 @@ export default function PasswordManagerScreen() {
 
   const canSubmit = useMemo(() => {
     return (
+      !submitting &&
       currentPassword.length > 0 &&
       newPassword.length > 0 &&
       confirmNewPassword.length > 0
     );
-  }, [currentPassword, newPassword, confirmNewPassword]);
+  }, [submitting, currentPassword, newPassword, confirmNewPassword]);
+
+  async function onSubmit() {
+    if (!canSubmit) return;
+    if (!token) {
+      Alert.alert('Ralat', 'Sesi tamat. Sila log masuk semula.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Ralat', 'Pengesahan kata laluan baharu tidak sepadan.');
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      Alert.alert('Ralat', 'Kata laluan baharu mesti berbeza daripada kata laluan semasa.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await postChangePassword(token, {
+        currentPassword,
+        newPassword,
+        confirmNewPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      Alert.alert('Berjaya', 'Kata laluan berjaya ditukar.');
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Ralat', formatAxiosError(e, 'Gagal menukar kata laluan.'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onForgotPassword() {
+    const targetEmail = (session?.email ?? '').trim();
+    if (!targetEmail) {
+      Alert.alert('Lupa Kata Laluan', 'Emel akaun tidak dijumpai.');
+      return;
+    }
+
+    try {
+      const res = await postForgotPassword(targetEmail);
+      Alert.alert('Lupa Kata Laluan', res?.message ?? 'Permintaan tetapan semula telah dihantar.');
+    } catch (e: any) {
+      Alert.alert('Ralat', e?.message ?? 'Gagal hantar pautan tetapan semula.');
+    }
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -54,7 +111,7 @@ export default function PasswordManagerScreen() {
             onToggleVisible={() => setShowCurrent((v) => !v)}
           />
           <Pressable
-            onPress={() => Alert.alert('Lupa Kata Laluan', 'Sila hubungi admin.')}
+            onPress={onForgotPassword}
             className="mt-2 self-end"
             accessibilityRole="button"
           >
@@ -86,9 +143,7 @@ export default function PasswordManagerScreen() {
       <View className="flex-1" />
       <View className="px-5 pb-8">
         <Pressable
-          onPress={() =>
-            Alert.alert('Change Password', 'Coming soon (API belum siap).')
-          }
+          onPress={onSubmit}
           disabled={!canSubmit}
           className={[
             'h-14 items-center justify-center rounded-full bg-primary',
@@ -96,9 +151,13 @@ export default function PasswordManagerScreen() {
           ].join(' ')}
           accessibilityRole="button"
         >
-          <AppText variant="body" style={{ fontWeight: '800', color: '#ffffff' }}>
-            Change Password
-          </AppText>
+          {submitting ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <AppText variant="body" style={{ fontWeight: '800', color: '#ffffff' }}>
+              Change Password
+            </AppText>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>

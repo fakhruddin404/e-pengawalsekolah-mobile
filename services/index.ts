@@ -8,5 +8,7 @@ export * from './mapService';
 export * from './rondaanService';
 export * from './laporanService';
 export * from './sosService';
+export * from './passwordManagerService';
+export * from './forgotPasswordService';
 export * from './logout';
 

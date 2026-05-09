@@ -8,7 +8,7 @@ import { AppText } from '../components/AppText';
 import { textVariants } from '../theme/typography';
 import { palette, radii, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { loginWithLocation } from '../services';
+import { loginWithLocation, postForgotPassword } from '../services';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -77,6 +77,21 @@ export default function LoginScreen() {
       Alert.alert('Ralat', message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onForgotPassword() {
+    const targetEmail = email.trim();
+    if (!targetEmail) {
+      Alert.alert('Lupa Kata Laluan', 'Sila masukkan emel anda dahulu.');
+      return;
+    }
+
+    try {
+      const res = await postForgotPassword(targetEmail);
+      Alert.alert('Lupa Kata Laluan', res?.message ?? 'Permintaan tetapan semula telah dihantar.');
+    } catch (e: any) {
+      Alert.alert('Ralat', e?.message ?? 'Gagal hantar pautan tetapan semula.');
     }
   }
 
@@ -171,9 +186,7 @@ export default function LoginScreen() {
             </View>
 
             <Pressable
-              onPress={() =>
-                Alert.alert('Lupa Kata Laluan', 'Sila hubungi admin untuk reset.')
-              }
+              onPress={onForgotPassword}
               style={{ marginTop: spacing.xs, alignSelf: 'flex-end' }}
               accessibilityRole="button"
             >
