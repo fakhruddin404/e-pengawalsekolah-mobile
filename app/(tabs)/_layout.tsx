@@ -4,7 +4,6 @@ import { Easing } from 'react-native';
 
 import { MainTabBar } from '../../components/MainTabBar';
 import { useAuth } from '../../context/AuthContext';
-import { startLocationPing } from '../../services';
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -15,15 +14,6 @@ export default function TabsLayout() {
       router.replace('/login');
     }
   }, [router, session]);
-
-  useEffect(() => {
-    if (!session?.token) return;
-    const stop = startLocationPing(session.token, {
-      distanceIntervalM: 5,
-      endpointPath: 'location-ping',
-    });
-    return stop;
-  }, [session?.token]);
 
   // Prevent rendering tab screens when logged out (avoids swipe/back to cached tabs).
   if (!session) return null;

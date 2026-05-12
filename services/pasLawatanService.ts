@@ -7,7 +7,7 @@ export type CreatePasLawatanPayload = {
   ic: string;
   noKenderaan: string;
   tujuan: string;
-  masaMasuk: string; // HH:mm
+  masaMasuk: string; // HH:mm / HH:mm:ss / ISO-8601 datetime
 };
 
 // Helper function to omit nullish values from the object

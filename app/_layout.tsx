@@ -1,12 +1,32 @@
 import '../global.css';
 
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { startLocationPing } from '../services';
+
+function SessionLocationTracker() {
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session?.token) return;
+
+    const stop = startLocationPing(session.token, {
+      distanceIntervalM: 5,
+      endpointPath: 'location-ping',
+    });
+
+    return stop;
+  }, [session?.token]);
+
+  return null;
+}
 
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <SessionLocationTracker />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />

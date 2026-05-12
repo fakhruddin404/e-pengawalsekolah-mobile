@@ -54,6 +54,30 @@ function formatHHmm(d: Date) {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+function toIsoStringFromLocalHHmm(hhmm: string) {
+  const value = (hhmm ?? '').trim();
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (!m) return new Date().toISOString();
+
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return new Date().toISOString();
+  }
+
+  const now = new Date();
+  const local = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hour,
+    minute,
+    0,
+    0
+  );
+  return local.toISOString();
+}
+
 export default function CreatePasLawatanScreen() {
   const router = useRouter();
   const { session } = useAuth();
@@ -188,6 +212,7 @@ export default function CreatePasLawatanScreen() {
 
   async function onPressSubmit() {
     if (!canSubmit) return;
+    const masaMasukIso = toIsoStringFromLocalHHmm(masaMasuk);
     await handleSubmit({
       id: selectedPelawatId,
       namaPenuh: namaPenuh.trim(),
@@ -195,7 +220,7 @@ export default function CreatePasLawatanScreen() {
       ic: ic.trim(),
       noKenderaan: noKenderaan.trim(),
       tujuan: finalTujuan.trim(),
-      masaMasuk: masaMasuk.trim(),
+      masaMasuk: masaMasukIso,
     });
   }
 
@@ -290,7 +315,7 @@ export default function CreatePasLawatanScreen() {
 
           <View style={{ height: spacing.lg }} />
 
-          // form input
+          {/* form input */}
           <View className="flex-row flex-wrap" style={{ marginHorizontal: -8 }}>
             <FieldBlock title="Nama Penuh" required className="w-full md:w-1/2" pad>
               <FocusField
