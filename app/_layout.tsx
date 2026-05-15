@@ -13,7 +13,9 @@ function SessionLocationTracker() {
     if (!session?.token) return;
 
     const stop = startLocationPing(session.token, {
+      // Send first ping immediately, then rely on movement threshold.
       distanceIntervalM: 5,
+      minTimeBetweenSendsMs: 10_000,
       endpointPath: 'location-ping',
     });
 

@@ -38,6 +38,7 @@ export default function HomeMapScreen() {
   const [totalTitik, setTotalTitik] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(true);
   const [permission, requestPermission] = useCameraPermissions();
   const { session } = useAuth();
   const scanLockRef = useRef(false);
@@ -199,6 +200,7 @@ export default function HomeMapScreen() {
           <View className="absolute inset-0 bg-black">
             <CameraView
               onBarcodeScanned={handleBarCodeScanned}
+              enableTorch={torchEnabled}
               style={{ flex: 1 }}
             />
 
@@ -218,6 +220,16 @@ export default function HomeMapScreen() {
                 >
                   Halakan Kod QR Titik Semak Dalam Kotak Yang Disediakan
                 </AppText>
+                <View className="mt-3 items-center">
+                  <Pressable
+                    onPress={() => setTorchEnabled((prev) => !prev)}
+                    className="rounded-full bg-white/90 px-4 py-2"
+                  >
+                    <AppText variant="caption" style={{ fontWeight: '800', color: '#0F172A' }}>
+                      {torchEnabled ? 'LAMPU: ON' : 'LAMPU: OFF'}
+                    </AppText>
+                  </Pressable>
+                </View>
               </View>
             </SafeAreaView>
 
@@ -263,6 +275,7 @@ export default function HomeMapScreen() {
                     Alert.alert('Ralat', 'Keizinan kamera diperlukan untuk imbas QR.');
                     return;
                   }
+                  setTorchEnabled(true);
                   setIsScanning(true);
                 }}
               />

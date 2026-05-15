@@ -7,7 +7,7 @@ export type CreatePasLawatanPayload = {
   ic: string;
   noKenderaan: string;
   tujuan: string;
-  masaMasuk: string; // HH:mm / HH:mm:ss / ISO-8601 datetime
+  masaMasuk?: string;
 };
 
 // Helper function to omit nullish values from the object
@@ -33,15 +33,12 @@ export async function postCreatePasLawatan(token: string, payload: CreatePasLawa
     vis_noIC: payload.ic,
     Pas_noKenderaan: payload.noKenderaan,
     pas_tujuan: payload.tujuan,
-    pas_masaMasuk: payload.masaMasuk,
-
     id: payload.id,
     namaPenuh: payload.namaPenuh,
     noTel: payload.noTel,
     ic: payload.ic,
     noKenderaan: payload.noKenderaan,
     tujuan: payload.tujuan,
-    masaMasuk: payload.masaMasuk,
   });
 
   const path = 'pas-lawatan';

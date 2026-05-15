@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -94,12 +95,15 @@ async function buildUploadImage(asset: ImagePicker.ImagePickerAsset) {
 export default function CreateLaporanScreen() {
   const router = useRouter();
   const { session } = useAuth();
+  const isIOS = Platform.OS === 'ios';
   const token = session?.token ?? '';
   const [kejadian, setKejadian] = useState<KejadianType>('Kerosakkan');
   const [keterangan, setKeterangan] = useState('');
   const [selectedDateTime, setSelectedDateTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [activePicker, setActivePicker] = useState<'date' | 'time' | null>(null);
+  const [draftDateTime, setDraftDateTime] = useState(new Date());
   const [selectedLocation, setSelectedLocation] = useState<LatLng | null>(null);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [mapDraftLocation, setMapDraftLocation] = useState<LatLng | null>(null);
@@ -219,6 +223,33 @@ export default function CreateLaporanScreen() {
   function openMapPicker() {
     setMapDraftLocation(selectedLocation);
     setMapPickerOpen(true);
+  }
+
+  function openDatePicker() {
+    if (isIOS) {
+      setDraftDateTime(selectedDateTime);
+      setActivePicker('date');
+      return;
+    }
+    setShowDatePicker(true);
+  }
+
+  function openTimePicker() {
+    if (isIOS) {
+      setDraftDateTime(selectedDateTime);
+      setActivePicker('time');
+      return;
+    }
+    setShowTimePicker(true);
+  }
+
+  function closeIosPicker() {
+    setActivePicker(null);
+  }
+
+  function confirmIosPicker() {
+    setSelectedDateTime(new Date(draftDateTime));
+    setActivePicker(null);
   }
 
   return (
@@ -400,7 +431,7 @@ export default function CreateLaporanScreen() {
             Tarikh
           </AppText>
           <Pressable
-            onPress={() => setShowDatePicker(true)}
+            onPress={openDatePicker}
             disabled={submitting}
             style={[
               {
@@ -425,7 +456,7 @@ export default function CreateLaporanScreen() {
             Masa
           </AppText>
           <Pressable
-            onPress={() => setShowTimePicker(true)}
+            onPress={openTimePicker}
             disabled={submitting}
             style={{
               height: 52,
@@ -449,13 +480,13 @@ export default function CreateLaporanScreen() {
             </AppText>
           </Pressable>
 
-          {showDatePicker ? (
+          {Platform.OS === 'android' && showDatePicker ? (
             <DateTimePicker
               value={selectedDateTime}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="default"
               onChange={(event: any, value?: Date) => {
-                if (Platform.OS === 'android') setShowDatePicker(false);
+                setShowDatePicker(false);
                 if (event.type === 'dismissed' || !value) return;
                 setSelectedDateTime((prev) => {
                   const next = new Date(prev);
@@ -467,14 +498,14 @@ export default function CreateLaporanScreen() {
             />
           ) : null}
 
-          {showTimePicker ? (
+          {Platform.OS === 'android' && showTimePicker ? (
             <DateTimePicker
               value={selectedDateTime}
               mode="time"
               is24Hour
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="default"
               onChange={(event: any, value?: Date) => {
-                if (Platform.OS === 'android') setShowTimePicker(false);
+                setShowTimePicker(false);
                 if (event.type === 'dismissed' || !value) return;
                 setSelectedDateTime((prev) => {
                   const next = new Date(prev);
@@ -530,6 +561,77 @@ export default function CreateLaporanScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {isIOS && activePicker ? (
+        <Modal transparent animationType="slide" visible onRequestClose={closeIosPicker}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, 0.35)' }}>
+            <Pressable style={{ flex: 1 }} onPress={closeIosPicker} />
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                paddingHorizontal: spacing.md,
+                paddingTop: spacing.md,
+                paddingBottom: spacing.lg,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <AppText variant="label" style={{ color: '#374151' }}>
+                  {activePicker === 'date' ? 'Pilih Tarikh' : 'Pilih Masa'}
+                </AppText>
+                <Pressable onPress={closeIosPicker} accessibilityRole="button">
+                  <AppText variant="caption" style={{ color: '#64748B', fontWeight: '700' }}>
+                    Batal
+                  </AppText>
+                </Pressable>
+              </View>
+
+              <DateTimePicker
+                value={draftDateTime}
+                mode={activePicker}
+                display="spinner"
+                is24Hour={activePicker === 'time'}
+                onChange={(event: any, value?: Date) => {
+                  if (event.type === 'dismissed' || !value) return;
+                  setDraftDateTime((prev) => {
+                    const next = new Date(prev);
+                    if (activePicker === 'date') {
+                      next.setFullYear(value.getFullYear(), value.getMonth(), value.getDate());
+                    } else {
+                      next.setHours(value.getHours(), value.getMinutes(), 0, 0);
+                    }
+                    return next;
+                  });
+                }}
+              />
+
+              <Pressable
+                onPress={confirmIosPicker}
+                style={{
+                  marginTop: spacing.sm,
+                  height: 44,
+                  borderRadius: radii.pill,
+                  backgroundColor: palette.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppText variant="caption" style={{ color: '#FFFFFF', fontWeight: '800' }}>
+                  Selesai
+                </AppText>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
 
       <LocationPickerModal
         visible={mapPickerOpen}

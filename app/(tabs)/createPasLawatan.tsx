@@ -35,7 +35,6 @@ type CreatePasLawatanSubmitPayload = {
   ic: string;
   noKenderaan: string;
   tujuan: string;
-  masaMasuk: string;
 };
 
 const TUJUAN_OPTIONS: PasTujuan[] = [
@@ -45,38 +44,6 @@ const TUJUAN_OPTIONS: PasTujuan[] = [
   'Ambil anak',
   'Lain-lain',
 ];
-
-function pad2(n: number) {
-  return n < 10 ? `0${n}` : `${n}`;
-}
-
-function formatHHmm(d: Date) {
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-
-function toIsoStringFromLocalHHmm(hhmm: string) {
-  const value = (hhmm ?? '').trim();
-  const m = /^(\d{1,2}):(\d{2})$/.exec(value);
-  if (!m) return new Date().toISOString();
-
-  const hour = Number(m[1]);
-  const minute = Number(m[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-    return new Date().toISOString();
-  }
-
-  const now = new Date();
-  const local = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    hour,
-    minute,
-    0,
-    0
-  );
-  return local.toISOString();
-}
 
 export default function CreatePasLawatanScreen() {
   const router = useRouter();
@@ -89,7 +56,6 @@ export default function CreatePasLawatanScreen() {
   const [noKenderaan, setNoKenderaan] = useState('');
   const [tujuan, setTujuan] = useState<PasTujuan>('Urusan pejabat');
   const [tujuan_lain, setTujuanLain] = useState('');
-  const [masaMasuk, setMasaMasuk] = useState(formatHHmm(new Date()));
   const [selectedPelawatId, setSelectedPelawatId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -116,7 +82,6 @@ export default function CreatePasLawatanScreen() {
     setNoKenderaan('');
     setTujuan('Urusan pejabat');
     setTujuanLain('');
-    setMasaMasuk(formatHHmm(new Date()));
     setSelectedPelawatId(null);
   }
 
@@ -156,9 +121,8 @@ export default function CreatePasLawatanScreen() {
     if (!ic.trim()) return false;
     if (!noKenderaan.trim()) return false;
     if (!finalTujuan.trim()) return false;
-    if (!masaMasuk.trim()) return false;
     return true;
-  }, [submitting, namaPenuh, noTel, ic, noKenderaan, finalTujuan, masaMasuk]);
+  }, [submitting, namaPenuh, noTel, ic, noKenderaan, finalTujuan]);
 
   useEffect(() => {
     let alive = true;
@@ -212,7 +176,6 @@ export default function CreatePasLawatanScreen() {
 
   async function onPressSubmit() {
     if (!canSubmit) return;
-    const masaMasukIso = toIsoStringFromLocalHHmm(masaMasuk);
     await handleSubmit({
       id: selectedPelawatId,
       namaPenuh: namaPenuh.trim(),
@@ -220,7 +183,6 @@ export default function CreatePasLawatanScreen() {
       ic: ic.trim(),
       noKenderaan: noKenderaan.trim(),
       tujuan: finalTujuan.trim(),
-      masaMasuk: masaMasukIso,
     });
   }
 
@@ -396,15 +358,6 @@ export default function CreatePasLawatanScreen() {
               </FieldBlock>
             ) : null}
 
-            <FieldBlock title="Masa Masuk" required className="w-full md:w-1/2" pad>
-              <FocusField
-                value={masaMasuk}
-                onChangeText={() => {}}
-                placeholder="HH:mm"
-                editable={false}
-                rightHint="Auto"
-              />
-            </FieldBlock>
           </View>
 
           <View style={{ height: spacing.xl }} />

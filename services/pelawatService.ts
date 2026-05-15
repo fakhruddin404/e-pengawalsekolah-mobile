@@ -12,8 +12,8 @@ export type PelawatAktifItem = {
   name: string;
   purpose: string;
   plate: string;
-  masaMasuk?: string;
   createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PelawatAktifUiItem = {
@@ -89,14 +89,6 @@ function normalizePelawatAktif(row: any, idx: number): PelawatAktifItem {
     ) ?? ''
   ).trim();
 
-  const masaMasukVal = firstDefined(row?.masaMasuk, row?.pas_masaMasuk, row?.fld_pas_masaMasuk);
-  const masaMasuk =
-    typeof masaMasukVal === 'string'
-      ? masaMasukVal.trim()
-      : masaMasukVal
-        ? String(masaMasukVal).trim()
-        : undefined;
-
   const createdAtVal = firstDefined(row?.created_at, row?.createdAt, row?.tarikh, row?.date);
   const createdAt =
     typeof createdAtVal === 'string'
@@ -105,7 +97,15 @@ function normalizePelawatAktif(row: any, idx: number): PelawatAktifItem {
         ? String(createdAtVal).trim()
         : undefined;
 
-  return { id, name, purpose, plate, masaMasuk, createdAt };
+  const updatedAtVal = firstDefined(row?.updated_at, row?.updatedAt);
+  const updatedAt =
+    typeof updatedAtVal === 'string'
+      ? updatedAtVal.trim()
+      : updatedAtVal
+        ? String(updatedAtVal).trim()
+        : undefined;
+
+  return { id, name, purpose, plate, createdAt, updatedAt };
 }
 
 /**
@@ -242,8 +242,8 @@ function parseDateInput(input: string) {
   return new Date(NaN);
 }
 
-function formatDurationSince(masaMasuk?: string, createdAt?: string) {
-  const base = masaMasuk?.trim() || createdAt?.trim() || '';
+function formatDurationSince(createdAt?: string) {
+  const base = createdAt?.trim() || '';
   if (!base) return '';
 
   const start = parseDateInput(base);
@@ -265,7 +265,7 @@ export function toPelawatAktifUiItem(row: PelawatAktifItem): PelawatAktifUiItem 
     purpose: row.purpose,
     plate: row.plate,
     dateLabel: formatDateLabel(row.createdAt),
-    durationLabel: formatDurationSince(row.masaMasuk, row.createdAt),
+    durationLabel: formatDurationSince(row.createdAt),
   };
 }
 
