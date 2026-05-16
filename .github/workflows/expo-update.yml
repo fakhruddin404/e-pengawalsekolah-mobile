@@ -26,5 +26,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Publish update to Expo
-        run: eas update --branch preview --message "Automated update from GitHub" --non-interactive
+      - name: Publish Android Update
+        run: |
+          eas update --branch preview --platform android --message "Automated GitHub Update" --non-interactive
+
+        - name: Publish iOS Update
+          run: |
+            eas update --branch preview --platform ios --message "Automated GitHub Update" --non-interactive
