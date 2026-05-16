@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  DeviceEventEmitter,
   FlatList,
   Pressable,
   TextInput,
@@ -16,6 +18,7 @@ import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { DashboardHeader } from '../../components/DashboardHeader';
 import { useAuth } from '../../context/AuthContext';
 import { getPelawatAktifUi, postKeluarPasLawatan } from '../../services';
+import { PELAWAT_AKTIF_SYNC_EVENT } from '../../services/realtimeService';
 
 const CARD_BG = palette.surface;
 const TAG_BG = palette.surfaceAlt;
@@ -34,10 +37,10 @@ export default function SenaraiPelawatAktif() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async (showLoading = true) => {
     if (!token) return;
     setLoadError(null);
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const res = await getPelawatAktifUi(token);
       setItems(res);
@@ -45,9 +48,9 @@ export default function SenaraiPelawatAktif() {
       setLoadError(e?.message ?? 'Gagal memuatkan senarai pelawat.');
       setItems([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  }
+  }, [token]);
 
   function confirmKeluar(id: string, name: string) {
     if (!token) {
@@ -63,7 +66,7 @@ export default function SenaraiPelawatAktif() {
         onPress: async () => {
           try {
             await postKeluarPasLawatan(token, id);
-            await load();
+            await load(false);
             Alert.alert('Berjaya', 'Pelawat telah direkod keluar.');
           } catch (e: any) {
             Alert.alert('Ralat', e?.message ?? 'Gagal rekod keluar. Sila cuba lagi.');
@@ -73,11 +76,20 @@ export default function SenaraiPelawatAktif() {
     ]);
   }
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      void load();
+    }, [load, token])
+  );
+
   useEffect(() => {
     if (!token) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+    const sub = DeviceEventEmitter.addListener(PELAWAT_AKTIF_SYNC_EVENT, () => {
+      void load(false);
+    });
+    return () => sub.remove();
+  }, [load, token]);
 
   const searchPelawatAktif = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -102,7 +114,7 @@ export default function SenaraiPelawatAktif() {
           if (!token) return;
           setRefreshing(true);
           try {
-            await load();
+            await load(false);
           } finally {
             setRefreshing(false);
           }

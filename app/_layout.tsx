@@ -1,10 +1,26 @@
 import '../global.css';
 
 import { useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { startLocationPing } from '../services';
+import { PELAWAT_AKTIF_SYNC_EVENT, subscribeToPelawatAktifUpdates } from '../services/realtimeService';
+
+function SessionPasLawatanRealtime() {
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session?.token) return;
+
+    return subscribeToPelawatAktifUpdates(session.token, () => {
+      DeviceEventEmitter.emit(PELAWAT_AKTIF_SYNC_EVENT);
+    });
+  }, [session?.token]);
+
+  return null;
+}
 
 function SessionLocationTracker() {
   const { session } = useAuth();
@@ -29,6 +45,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <SessionLocationTracker />
+      <SessionPasLawatanRealtime />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />

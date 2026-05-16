@@ -25,5 +25,11 @@ module.exports = {
         },
       },
     },
-  },
+    updates: {
+      url: "https://u.expo.dev/a1c497e7-2e15-44fd-ba6f-1bf4e7f5f876"
+    },
+    runtimeVersion: {
+      policy: "appVersion"
+    }
+  }
 };

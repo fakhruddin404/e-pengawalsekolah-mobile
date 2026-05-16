@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -110,7 +110,7 @@ export default function HomeMapScreen() {
         Alert.alert('Ralat', 'Sesi tidak sah. Sila log masuk semula.');
         return;
       }
-      
+
       const normalized = await prepareRondaanStartData(session.token);
       if (normalized.length === 0) {
         Alert.alert('Ralat', 'Data titik semak diterima tetapi tiada koordinat sah untuk dipaparkan.');
@@ -144,15 +144,15 @@ export default function HomeMapScreen() {
     }
 
     const { peratus, durasi } = calculatePatrolStats(
-      totalTitik, 
-      titikSemak.length, 
+      totalTitik,
+      titikSemak.length,
       startTime
     );
-  
+
     Alert.alert("Tamat Rondaan", `Selesaikan ${peratus}% rondaan?`, [
       { text: "Batal", style: "cancel" },
-      { 
-        text: "Simpan", 
+      {
+        text: "Simpan",
         onPress: async () => {
           try {
             const result = await submitRondaanRecord(session.token, {
@@ -188,7 +188,7 @@ export default function HomeMapScreen() {
           }
         >
           {/* Fix 2: Hantar props ke MapsDashboard */}
-          <MapsDashboard 
+          <MapsDashboard
             isRondaanActive={isRondaanActive}
             titikSemak={titikSemak}
             userRoute={userRoute}
@@ -254,22 +254,22 @@ export default function HomeMapScreen() {
 
         <View className="absolute bottom-36 left-4 space-y-3">
           {!isRondaanActive ? (
-            <Fab 
-              label="MULA" 
-              icon={<Play size={18} color={palette.text} />} 
-              onPress={onMulaRondaan} 
+            <Fab
+              label="MULA"
+              icon={<Play size={18} color={palette.text} />}
+              onPress={onMulaRondaan}
             />
           ) : (
             <>
-              <Fab 
-                label="TAMAT" 
-                icon={<StopCircle size={18} color="#EF4444" />} 
-                onPress={onTamatRondaan} 
+              <Fab
+                label="TAMAT"
+                icon={<StopCircle size={18} color="#EF4444" />}
+                onPress={onTamatRondaan}
               />
               <View className="h-3" />
-              <Fab 
-                label="IMBAS" 
-                icon={<ScanLine size={18} color={palette.text} />} 
+              <Fab
+                label="IMBAS"
+                icon={<ScanLine size={18} color={palette.text} />}
                 onPress={() => {
                   if (permission?.granted === false) {
                     Alert.alert('Ralat', 'Keizinan kamera diperlukan untuk imbas QR.');
@@ -281,19 +281,65 @@ export default function HomeMapScreen() {
               />
             </>
           )}
-          
+
           <View className="h-3" />
           <Fab
             label="LAPORAN"
             icon={<FileText size={18} color={palette.text} />}
             onPress={() => router.push('/(tabs)/createLaporan')}
           />
-          
+
           <View className="h-3" />
           <Fab
             label="SOS"
-            icon={<Siren size={18} color={palette.text} />}
-            onPress={() => Alert.alert('SOS', 'Menghantar SOS...')}
+            icon={<Siren size={18} color="#EF4444" />}
+            onPress={() => {
+              Alert.alert(
+                '🚨 Isyarat Kecemasan',
+                'Adakah anda pasti mahu menghantar isyarat SOS kecemasan?',
+                [
+                  { text: 'Batal', style: 'cancel' },
+                  {
+                    text: 'HANTAR SOS',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        if (!session?.token) {
+                          Alert.alert('Ralat', 'Sesi tidak sah. Sila log masuk semula.');
+                          return;
+                        }
+
+                        const { status } = await Location.requestForegroundPermissionsAsync();
+                        if (status !== 'granted') {
+                          Alert.alert('Ralat', 'Keizinan lokasi diperlukan untuk SOS.');
+                          return;
+                        }
+
+                        const pos = await Location.getCurrentPositionAsync({
+                          accuracy: Location.Accuracy.Highest,
+                        });
+
+                        const { postSOS } = await import('../../services/sosService');
+                        await postSOS(session.token, {
+                          latitude: pos.coords.latitude,
+                          longitude: pos.coords.longitude,
+                        });
+
+                        Alert.alert('Berjaya', 'Isyarat SOS berjaya dihantar. Bantuan sedang dimaklumkan.', [
+                          {
+                            text: 'OK',
+                            onPress: () => Linking.openURL('tel:0139524123'),
+                          },
+                        ]);
+                      } catch (error: any) {
+                        const msg = error?.message ?? 'Gagal menghantar isyarat SOS.';
+                        Alert.alert('Ralat', msg);
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
           />
         </View>
       </View>

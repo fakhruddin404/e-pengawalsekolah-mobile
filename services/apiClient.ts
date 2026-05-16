@@ -16,10 +16,10 @@ function resolveApiBaseUrl(raw: string) {
   return `${cleaned}${API_PREFIX}`;
 }
 
-const baseURL = resolveApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL ?? '');
+export const API_BASE_URL = resolveApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL ?? '');
 
 export const api = axios.create({
-  baseURL,
+  baseURL: API_BASE_URL,
   timeout: 20_000,
   headers: {
     Accept: 'application/json',
@@ -36,14 +36,14 @@ export function formatAxiosError(e: any, fallback: string) {
     null;
 
   if (msgFromLaravel) {
-    return status ? `${msgFromLaravel} (HTTP ${status})` : msgFromLaravel;
+    return status ? `${msgFromLaravel}` : msgFromLaravel;
   }
 
   if (status === 403) {
-    return 'Akses ditolak (403). Akaun anda mungkin tidak mempunyai kebenaran untuk tindakan ini.';
+    return 'Akses ditolak. Akaun anda mungkin tidak mempunyai kebenaran untuk tindakan ini.';
   }
   if (status === 401) {
-    return 'Sesi tidak sah (401). Sila log masuk semula.';
+    return 'Sesi tidak sah. Sila log masuk semula.';
   }
 
   const isNetworkError =
@@ -51,7 +51,7 @@ export function formatAxiosError(e: any, fallback: string) {
     ((typeof e?.message === 'string' && /network error/i.test(e.message)) ||
       e?.code === 'ERR_NETWORK');
   if (isNetworkError) {
-    return `Tidak dapat hubungi pelayan. Semak internet/perlindungan SSL dan pastikan API boleh dicapai di ${baseURL}.`;
+    return `Tidak dapat hubungi pelayan. Semak internet/perlindungan SSL dan pastikan API boleh dicapai di ${API_BASE_URL}.`;
   }
 
   return e?.message ?? fallback;
