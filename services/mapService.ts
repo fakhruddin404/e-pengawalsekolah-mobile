@@ -1,15 +1,36 @@
 import * as Location from 'expo-location';
-import { AnimatedRegion } from 'react-native-maps';
+import type MapView from 'react-native-maps';
+import { AnimatedRegion, type Region } from 'react-native-maps';
 
 export type MapCoords = { latitude: number; longitude: number };
 
 export const MAP_REGION_DELTA = 0.012;
+export const MAP_USER_ZOOM_DELTA = 0.006;
+export const MAP_CENTER_LAT_OFFSET_RATIO = 0.22;
+export const MAP_RECENTER_INTERVAL_MS = 30_000;
+
 export const MAP_FALLBACK_REGION = {
   latitude: 3.139,
   longitude: 101.6869,
   latitudeDelta: 6,
   longitudeDelta: 6,
 };
+
+export function getMapEdgePadding() {
+  return { top: 140, bottom: 80, left: 40, right: 40 };
+}
+
+export function getUserCenteredRegion(
+  coords: MapCoords,
+  delta: number = MAP_USER_ZOOM_DELTA
+): Region {
+  return {
+    latitude: coords.latitude + delta * MAP_CENTER_LAT_OFFSET_RATIO,
+    longitude: coords.longitude,
+    latitudeDelta: delta,
+    longitudeDelta: delta,
+  };
+}
 
 export function createAnimatedMapRegion() {
   return new AnimatedRegion({
@@ -20,26 +41,49 @@ export function createAnimatedMapRegion() {
 export function animateRegionTo(
   region: AnimatedRegion,
   next: MapCoords,
-  duration = 300
+  duration = 300,
+  delta: number = MAP_USER_ZOOM_DELTA
 ) {
+  const centered = getUserCenteredRegion(next, delta);
   (region as any)
     .timing({
-      latitude: next.latitude,
-      longitude: next.longitude,
-      latitudeDelta: MAP_REGION_DELTA,
-      longitudeDelta: MAP_REGION_DELTA,
+      ...centered,
       duration,
       useNativeDriver: false,
     })
     .start();
 }
 
-export function setRegionToCoords(region: AnimatedRegion, coords: MapCoords) {
-  region.setValue({
-    latitude: coords.latitude,
-    longitude: coords.longitude,
-    latitudeDelta: MAP_REGION_DELTA,
-    longitudeDelta: MAP_REGION_DELTA,
+export function setRegionToCoords(
+  region: AnimatedRegion,
+  coords: MapCoords,
+  delta: number = MAP_USER_ZOOM_DELTA
+) {
+  region.setValue(getUserCenteredRegion(coords, delta));
+}
+
+export function getCoordsForFit(user: MapCoords | null, titikSemak: any[]): MapCoords[] {
+  const coords: MapCoords[] = [];
+  if (user) coords.push(user);
+
+  for (const point of titikSemak) {
+    const coord = normalizeMapCoord(point);
+    if (coord) coords.push(coord);
+  }
+
+  return coords;
+}
+
+export function fitMapToCoords(
+  mapRef: MapView | null,
+  coordinates: MapCoords[],
+  animated = true
+) {
+  if (!mapRef || coordinates.length === 0) return;
+
+  mapRef.fitToCoordinates(coordinates, {
+    edgePadding: getMapEdgePadding(),
+    animated,
   });
 }
 
