@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '../../components/AppText';
 import {
@@ -10,6 +11,7 @@ import {
   fitMapToCoords,
   getCoordsForFit,
   getHighRefreshWatchOptions,
+  getIosLegalLabelInsets,
   getMapEdgePadding,
   getMapMarkerKey,
   getMapMarkerTitle,
@@ -18,10 +20,11 @@ import {
   setRegionToCoords,
   toCoordsFromLocation,
   type MapCoords,
+  type MapEdgePadding,
 } from '../../services';
 
 const AnimatedMapView = MapView.Animated;
-const mapPadding = getMapEdgePadding();
+const isIOS = Platform.OS === 'ios';
 
 interface MapsDashboardProps {
   isRondaanActive: boolean;
@@ -36,6 +39,16 @@ export default function MapsDashboard({
   userRoute = [],
   setUserRoute,
 }: MapsDashboardProps) {
+  const insets = useSafeAreaInsets();
+  const mapPadding = useMemo(
+    () => getMapEdgePadding({ top: insets.top, bottom: insets.bottom }),
+    [insets.top, insets.bottom]
+  );
+  const iosLegalLabelInsets = useMemo(
+    () => (isIOS ? getIosLegalLabelInsets(insets.bottom) : undefined),
+    [insets.bottom]
+  );
+
   const region = useRef(createAnimatedMapRegion()).current;
   const mapRef = useRef<MapView | null>(null);
   const [coords, setCoords] = useState<MapCoords | null>(null);
@@ -45,16 +58,18 @@ export default function MapsDashboard({
   const isRondaanActiveRef = useRef(isRondaanActive);
   const coordsRef = useRef<MapCoords | null>(null);
   const titikSemakRef = useRef(titikSemak);
+  const mapPaddingRef = useRef<MapEdgePadding>(mapPadding);
 
   isRondaanActiveRef.current = isRondaanActive;
   coordsRef.current = coords;
   titikSemakRef.current = titikSemak;
+  mapPaddingRef.current = mapPadding;
 
   const fitPatrolView = useCallback(
     (user: MapCoords, points: any[], animated = true) => {
       const fitCoords = getCoordsForFit(user, points);
       if (fitCoords.length > 1) {
-        fitMapToCoords(mapRef.current, fitCoords, animated);
+        fitMapToCoords(mapRef.current, fitCoords, animated, mapPaddingRef.current);
         return;
       }
       animateRegionTo(region, user, animated ? 500 : 0);
@@ -162,14 +177,21 @@ export default function MapsDashboard({
     );
 
   return (
-    <View className="flex-1">
+    <View style={StyleSheet.absoluteFillObject}>
       <AnimatedMapView
         ref={mapRef}
-        style={{ flex: 1 }}
+        style={StyleSheet.absoluteFillObject}
         region={region}
         mapPadding={mapPadding}
         showsUserLocation
-        showsMyLocationButton={Platform.OS === 'android'}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        showsScale={false}
+        showsPointsOfInterest={false}
+        {...(isIOS && iosLegalLabelInsets
+          ? { legalLabelInsets: iosLegalLabelInsets }
+          : {})}
+        {...(Platform.OS === 'android' ? { toolbarEnabled: false } : {})}
       >
         {userRoute.length > 0 && (
           <Polyline

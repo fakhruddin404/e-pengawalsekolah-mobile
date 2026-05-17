@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import type MapView from 'react-native-maps';
 import { AnimatedRegion, type Region } from 'react-native-maps';
 
@@ -16,8 +17,42 @@ export const MAP_FALLBACK_REGION = {
   longitudeDelta: 6,
 };
 
-export function getMapEdgePadding() {
-  return { top: 140, bottom: 80, left: 40, right: 40 };
+export type MapEdgePadding = {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+};
+
+/** Base insets: header, tab bar, FAB column (right), map legal label (bottom-left). */
+export function getMapEdgePaddingBase(): MapEdgePadding {
+  if (Platform.OS === 'ios') {
+    return { top: 92, bottom: 92, left: 24, right: 128 };
+  }
+  return { top: 118, bottom: 108, left: 32, right: 132 };
+}
+
+export function getMapEdgePadding(insets?: {
+  top?: number;
+  bottom?: number;
+}): MapEdgePadding {
+  const base = getMapEdgePaddingBase();
+  return {
+    top: base.top + (insets?.top ?? 0),
+    bottom: base.bottom + (insets?.bottom ?? 0),
+    left: base.left,
+    right: base.right,
+  };
+}
+
+/** iOS Apple Maps — keep legal label clear of tab bar / home indicator. */
+export function getIosLegalLabelInsets(safeBottom = 0) {
+  return {
+    top: 0,
+    left: 10,
+    right: 0,
+    bottom: Math.max(safeBottom, 8) + 10,
+  };
 }
 
 export function getUserCenteredRegion(
@@ -77,12 +112,13 @@ export function getCoordsForFit(user: MapCoords | null, titikSemak: any[]): MapC
 export function fitMapToCoords(
   mapRef: MapView | null,
   coordinates: MapCoords[],
-  animated = true
+  animated = true,
+  edgePadding: MapEdgePadding = getMapEdgePadding()
 ) {
   if (!mapRef || coordinates.length === 0) return;
 
   mapRef.fitToCoordinates(coordinates, {
-    edgePadding: getMapEdgePadding(),
+    edgePadding,
     animated,
   });
 }

@@ -1,7 +1,7 @@
 //test 
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   FileText,
@@ -31,8 +31,12 @@ import {
 
 const MapsDashboard = lazy(() => import('./MapsDashboard'));
 
+const TAB_BAR_CLEARANCE = Platform.select({ ios: 82, android: 96, default: 96 }) ?? 96;
+
 export default function HomeMapScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const fabBottom = TAB_BAR_CLEARANCE + insets.bottom;
   const [isRondaanActive, setIsRondaanActive] = useState(false);
   const [titikSemak, setTitikSemak] = useState<RondaanMapPoint[]>([]);
   const [userRoute, setUserRoute] = useState<any[]>([]);
@@ -181,21 +185,22 @@ export default function HomeMapScreen() {
   return (
     <View className="flex-1 bg-white">
       <View className="flex-1">
-        <Suspense
-          fallback={
-            <View className="flex-1 items-center justify-center bg-slate-100">
-              <ActivityIndicator size="large" color="#1F7BFF" />
-            </View>
-          }
-        >
-          {/* Fix 2: Hantar props ke MapsDashboard */}
-          <MapsDashboard
-            isRondaanActive={isRondaanActive}
-            titikSemak={titikSemak}
-            userRoute={userRoute}
-            setUserRoute={setUserRoute}
-          />
-        </Suspense>
+        <View className="absolute inset-0">
+          <Suspense
+            fallback={
+              <View className="flex-1 items-center justify-center bg-slate-100">
+                <ActivityIndicator size="large" color="#1F7BFF" />
+              </View>
+            }
+          >
+            <MapsDashboard
+              isRondaanActive={isRondaanActive}
+              titikSemak={titikSemak}
+              userRoute={userRoute}
+              setUserRoute={setUserRoute}
+            />
+          </Suspense>
+        </View>
 
         {isScanning && (
           <View className="absolute inset-0 bg-black">
@@ -249,11 +254,19 @@ export default function HomeMapScreen() {
           </View>
         )}
 
-        <SafeAreaView className="absolute left-0 right-0 top-0 bg-white">
+        <SafeAreaView
+          edges={['top']}
+          pointerEvents="box-none"
+          className="absolute left-0 right-0 top-0 bg-white"
+        >
           <DashboardHeader />
         </SafeAreaView>
 
-        <View className="absolute bottom-36 left-4 space-y-3">
+        <View
+          pointerEvents="box-none"
+          className="absolute right-4"
+          style={{ bottom: fabBottom }}
+        >
           {!isRondaanActive ? (
             <Fab
               label="MULA"
