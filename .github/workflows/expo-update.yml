@@ -2,12 +2,22 @@ name: EAS Update
 on:
   push:
     branches:
-      - main # Change this if your main branch is named 'master'
+      - main # Tukar ke 'master' jika nama branch utama anda adalah master
 
 jobs:
   update:
     name: Publish EAS Update
     runs-on: ubuntu-latest
+    
+    # 🔐 Menyuntik secrets GitHub menjadi fail persekitaran (.env) semasa build
+    env:
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+      EXPO_PUBLIC_GOOGLE_MAPS_ANDROID: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID }}
+      EXPO_PUBLIC_REVERB_APP_KEY: ${{ secrets.EXPO_PUBLIC_REVERB_APP_KEY }}
+      EXPO_PUBLIC_REVERB_HOST: ${{ secrets.EXPO_PUBLIC_REVERB_HOST }}
+      EXPO_PUBLIC_REVERB_PORT: ${{ secrets.EXPO_PUBLIC_REVERB_PORT }}
+      EXPO_PUBLIC_REVERB_SCHEME: ${{ secrets.EXPO_PUBLIC_REVERB_SCHEME }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -15,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x # Use your project's Node version
+          node-version: 24.x # Memastikan penggunaan Node.js versi stabil terkini
 
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
