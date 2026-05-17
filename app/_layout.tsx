@@ -7,6 +7,7 @@ import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { startLocationPing } from '../services';
 import { PELAWAT_AKTIF_SYNC_EVENT, subscribeToPelawatAktifUpdates } from '../services/realtimeService';
+import { useAutoLogoutOnAppClear } from '../services/logout';
 
 function SessionPasLawatanRealtime() {
   const { session } = useAuth();
@@ -41,11 +42,17 @@ function SessionLocationTracker() {
   return null;
 }
 
+function SessionAppCloseHandler() {
+  useAutoLogoutOnAppClear();
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <AuthProvider>
       <SessionLocationTracker />
       <SessionPasLawatanRealtime />
+      <SessionAppCloseHandler />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
