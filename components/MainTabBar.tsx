@@ -30,7 +30,9 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const safeBottomInset =
     Platform.OS === 'ios' ? Math.max(insets.bottom * 0.6, spacing.xs) : Math.max(insets.bottom, spacing.sm);
-  const tabRowTop = Platform.OS === 'ios' ? spacing.xs : spacing.sm;
+  const shellVerticalPadding = Platform.OS === 'ios' ? spacing.xs : spacing.sm;
+  const slidingPillTop =
+    shellVerticalPadding + (TAB_ROW_HEIGHT - SLIDING_PILL_HEIGHT) / 2;
 
   const visibleRoutes = state.routes.filter(
     (route) => route.name === 'sesiRondaan' || route.name === 'senaraiPelawat'
@@ -63,7 +65,7 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
     <View style={[styles.outerWrap, { paddingBottom: safeBottomInset }]}>
       <View
         onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
-        style={[styles.shell, { paddingTop: tabRowTop }]}
+        style={[styles.shell, { paddingVertical: shellVerticalPadding }]}
       >
         {tabWidth > 0 ? (
           <Animated.View
@@ -71,7 +73,7 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
             style={[
               styles.slidingPill,
               {
-                top: tabRowTop + (TAB_ROW_HEIGHT - SLIDING_PILL_HEIGHT) / 2,
+                top: slidingPillTop,
                 width: pillWidth,
                 transform: [{ translateX: indicatorX }],
               },
@@ -79,6 +81,7 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
           />
         ) : null}
 
+        <View style={styles.tabRow}>
         {visibleRoutes.map((route) => {
           const originalIndex = state.routes.indexOf(route);
           const isFocused = state.index === originalIndex;
@@ -113,6 +116,7 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
             />
           );
         })}
+        </View>
       </View>
     </View>
   );
@@ -218,15 +222,18 @@ const styles = StyleSheet.create({
   },
   shell: {
     position: 'relative',
-    flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderRadius: 24,
     paddingHorizontal: SHELL_HORIZONTAL_PADDING,
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
     borderWidth: 1,
     borderColor: '#D8E8F8',
     ...shadows.floating,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    height: TAB_ROW_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'space-around',
   },
   slidingPill: {
     position: 'absolute',
@@ -248,7 +255,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radii.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     gap: 8,
     maxWidth: '100%',
   },
