@@ -13,6 +13,7 @@ import {
   getHighRefreshWatchOptions,
   getIosLegalLabelInsets,
   getMapEdgePadding,
+  getMapViewPadding,
   getMapMarkerKey,
   getMapMarkerTitle,
   MAP_RECENTER_INTERVAL_MS,
@@ -40,7 +41,11 @@ export default function MapsDashboard({
   setUserRoute,
 }: MapsDashboardProps) {
   const insets = useSafeAreaInsets();
-  const mapPadding = useMemo(
+  const mapViewPadding = useMemo(
+    () => getMapViewPadding({ top: insets.top, bottom: insets.bottom }),
+    [insets.top, insets.bottom]
+  );
+  const mapEdgePadding = useMemo(
     () => getMapEdgePadding({ top: insets.top, bottom: insets.bottom }),
     [insets.top, insets.bottom]
   );
@@ -58,18 +63,18 @@ export default function MapsDashboard({
   const isRondaanActiveRef = useRef(isRondaanActive);
   const coordsRef = useRef<MapCoords | null>(null);
   const titikSemakRef = useRef(titikSemak);
-  const mapPaddingRef = useRef<MapEdgePadding>(mapPadding);
+  const mapEdgePaddingRef = useRef<MapEdgePadding>(mapEdgePadding);
 
   isRondaanActiveRef.current = isRondaanActive;
   coordsRef.current = coords;
   titikSemakRef.current = titikSemak;
-  mapPaddingRef.current = mapPadding;
+  mapEdgePaddingRef.current = mapEdgePadding;
 
   const fitPatrolView = useCallback(
     (user: MapCoords, points: any[], animated = true) => {
       const fitCoords = getCoordsForFit(user, points);
       if (fitCoords.length > 1) {
-        fitMapToCoords(mapRef.current, fitCoords, animated, mapPaddingRef.current);
+        fitMapToCoords(mapRef.current, fitCoords, animated, mapEdgePaddingRef.current);
         return;
       }
       animateRegionTo(region, user, animated ? 500 : 0);
@@ -182,7 +187,7 @@ export default function MapsDashboard({
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
         region={region}
-        mapPadding={mapPadding}
+        mapPadding={mapViewPadding}
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}

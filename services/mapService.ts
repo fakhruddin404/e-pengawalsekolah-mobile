@@ -24,7 +24,7 @@ export type MapEdgePadding = {
   right: number;
 };
 
-/** Base insets: header, tab bar, FAB column (right), map legal label (bottom-left). */
+/** Camera/fit insets: header, tab bar, FAB column — used by fitToCoordinates only. */
 export function getMapEdgePaddingBase(): MapEdgePadding {
   if (Platform.OS === 'ios') {
     return { top: 92, bottom: 92, left: 24, right: 128 };
@@ -45,13 +45,35 @@ export function getMapEdgePadding(insets?: {
   };
 }
 
-/** iOS Apple Maps — keep legal label clear of tab bar / home indicator. */
+/** MapView padding: minimal left/bottom so legal label sits at frame corner. */
+export function getMapViewPaddingBase(): MapEdgePadding {
+  if (Platform.OS === 'ios') {
+    return { top: 92, bottom: 6, left: 6, right: 128 };
+  }
+  return { top: 118, bottom: 6, left: 6, right: 132 };
+}
+
+export function getMapViewPadding(insets?: {
+  top?: number;
+  bottom?: number;
+}): MapEdgePadding {
+  const base = getMapViewPaddingBase();
+  const safeBottom = insets?.bottom ?? 0;
+  return {
+    top: base.top + (insets?.top ?? 0),
+    bottom: Math.max(base.bottom, Math.round(safeBottom * 0.25)),
+    left: base.left,
+    right: base.right,
+  };
+}
+
+/** iOS Apple Maps — anchor legal label at bottom-left of map frame. */
 export function getIosLegalLabelInsets(safeBottom = 0) {
   return {
     top: 0,
-    left: 10,
+    left: 4,
     right: 0,
-    bottom: Math.max(safeBottom, 8) + 10,
+    bottom: Math.max(4, Math.round(safeBottom * 0.2)),
   };
 }
 

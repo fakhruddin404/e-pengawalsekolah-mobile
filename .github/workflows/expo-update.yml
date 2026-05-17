@@ -36,8 +36,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Publish Android Update
-        run: eas update --branch preview --platform android --message "Automated android Update" --non-interactive
-
-      - name: Publish iOS Update
-        run: eas update --branch preview --platform ios --message "Automated iOS Update" --non-interactive
+      - name: Publish All Update
+        run: eas update --branch preview --platform all --message "Automated Android & iOS Update" --non-interactive
