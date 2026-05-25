@@ -1,4 +1,4 @@
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Image, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronRight, KeyRound, LogOut, User, ArrowLeft } from 'lucide-react-native';
@@ -15,7 +15,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { session, setSession } = useAuth();
 
-  const name = session?.displayName ?? '';
+  const name     = session?.displayName ?? '';
+  const photoUrl = session?.photoUrl ?? null;
   const initials = getInitials(name);
 
   return (
@@ -36,7 +37,16 @@ export default function SettingsScreen() {
         </View>
 
         <View style={{ alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xl }}>
-          <AvatarCircle initials={initials} />
+          {/* Photo or initials fallback — same logic as DashboardHeader */}
+          {photoUrl ? (
+            <Image
+              source={{ uri: photoUrl }}
+              style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
+              resizeMode="cover"
+            />
+          ) : (
+            <AvatarCircle initials={initials} />
+          )}
           <AppText variant="h2" style={{ marginTop: spacing.md }}>
             {name || 'Pengawal'}
           </AppText>

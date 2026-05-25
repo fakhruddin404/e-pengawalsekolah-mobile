@@ -27,16 +27,8 @@ import {
 
 import { AppText } from './AppText';
 import { palette, radii, shadows, spacing } from '../theme/ui';
-import { useAuth } from '../context/AuthContext';
-import {
-  type ActivityPayload,
-  type DashboardKpi,
-  type NotifItem,
-  fetchDashboardStats,
-  markAllNotificationsRead,
-  markNotificationRead,
-  subscribeToPengawalActivity,
-} from '../services/notificationService';
+import { useNotification } from '../context/NotificationContext';
+import type { NotifItem } from '../services/notificationService';
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
 const BLUE    = '#1F7BFF';
@@ -277,14 +269,16 @@ export type NotificationModalProps = {
 };
 
 export function NotificationModal({ visible, onClose }: NotificationModalProps) {
-  const { session } = useAuth();
-  const token = session?.token ?? '';
-
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [kpi, setKpi] = useState<DashboardKpi>({ rondaan_hari_ini: 0, pelawat_hari_ini: 0 });
-  const [notifications, setNotifications] = useState<NotifItem[]>([]);
-  const [pgwId, setPgwId] = useState('');
+  const {
+    kpi,
+    notifications,
+    unreadCount,
+    loading,
+    refreshing,
+    loadStats,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotification();
 
   const slideAnim = useRef(new Animated.Value(600)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -321,89 +315,13 @@ export function NotificationModal({ visible, onClose }: NotificationModalProps) 
     }
   }, [visible, slideAnim, backdropAnim]);
 
-  // ── Initial load ───────────────────────────────────────────────────────────
-  const loadStats = useCallback(
-    async (isRefresh = false) => {
-      if (!token) return;
-      try {
-        isRefresh ? setRefreshing(true) : setLoading(true);
-        const data = await fetchDashboardStats(token);
-        setKpi(data.kpi);
-        setNotifications(data.notifikasi);
-        setPgwId(data.pgw_id);
-      } catch (e) {
-        console.warn('[NotificationModal] fetchDashboardStats failed:', e);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [token]
-  );
-
   useEffect(() => {
     if (visible) {
-      loadStats();
+      // Optional: Refresh when modal is opened to ensure freshness
+      // We don't want to show loading spinner every time, so run silently
+      loadStats(true);
     }
   }, [visible, loadStats]);
-
-  // ── Real-time subscription ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!token || !pgwId) return;
-
-    const unsub = subscribeToPengawalActivity(
-      token,
-      pgwId,
-      (payload: ActivityPayload) => {
-        // Update KPI live
-        setKpi(payload.kpi);
-
-        // Prepend new notification item to the list
-        const newItem: NotifItem = {
-          id: `rt-${Date.now()}`,
-          type: payload.type,
-          title: payload.title,
-          message: payload.message,
-          meta: payload.meta,
-          occurred_at: payload.occurred_at,
-          is_read: false,
-        };
-        setNotifications((prev) => [newItem, ...prev]);
-      }
-    );
-
-    return unsub;
-  }, [token, pgwId]);
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleMarkRead = useCallback(
-    async (id: string) => {
-      // Optimistic UI
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-      );
-      try {
-        await markNotificationRead(token, id);
-      } catch {
-        // Revert on failure
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, is_read: false } : n))
-        );
-      }
-    },
-    [token]
-  );
-
-  const handleMarkAllRead = useCallback(async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    try {
-      await markAllNotificationsRead(token);
-    } catch {
-      console.warn('[NotificationModal] markAllRead failed');
-    }
-  }, [token]);
-
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

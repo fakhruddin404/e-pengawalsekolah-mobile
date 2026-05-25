@@ -1,0 +1,147 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useAuth } from './AuthContext';
+import {
+  type DashboardKpi,
+  type NotifItem,
+  type ActivityPayload,
+  fetchDashboardStats,
+  subscribeToPengawalActivity,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../services/notificationService';
+
+type NotificationContextValue = {
+  kpi: DashboardKpi;
+  notifications: NotifItem[];
+  unreadCount: number;
+  loading: boolean;
+  refreshing: boolean;
+  loadStats: (isRefresh?: boolean) => Promise<void>;
+  handleMarkRead: (id: string) => Promise<void>;
+  handleMarkAllRead: () => Promise<void>;
+};
+
+const NotificationContext = createContext<NotificationContextValue | null>(null);
+
+export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const token = session?.token ?? '';
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [kpi, setKpi] = useState<DashboardKpi>({ rondaan_hari_ini: 0, pelawat_hari_ini: 0 });
+  const [notifications, setNotifications] = useState<NotifItem[]>([]);
+  const [pgwId, setPgwId] = useState('');
+
+  const loadStats = useCallback(
+    async (isRefresh = false) => {
+      if (!token) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      try {
+        isRefresh ? setRefreshing(true) : setLoading(true);
+        const data = await fetchDashboardStats(token);
+        setKpi(data.kpi);
+        setNotifications(data.notifikasi);
+        setPgwId(data.pgw_id);
+      } catch (e) {
+        console.warn('[NotificationProvider] fetchDashboardStats failed:', e);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [token]
+  );
+
+  // Fetch once on mount or when token changes
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // Subscribe to real-time events
+  useEffect(() => {
+    if (!token || !pgwId) return;
+
+    const unsub = subscribeToPengawalActivity(
+      token,
+      pgwId,
+      (payload: ActivityPayload) => {
+        setKpi(payload.kpi);
+        const newItem: NotifItem = {
+          id: `rt-${Date.now()}`,
+          type: payload.type,
+          title: payload.title,
+          message: payload.message,
+          meta: payload.meta,
+          occurred_at: payload.occurred_at,
+          is_read: false,
+        };
+        setNotifications((prev) => [newItem, ...prev]);
+      }
+    );
+
+    return unsub;
+  }, [token, pgwId]);
+
+  const handleMarkRead = useCallback(
+    async (id: string) => {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+      );
+      try {
+        await markNotificationRead(token, id);
+      } catch {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, is_read: false } : n))
+        );
+      }
+    },
+    [token]
+  );
+
+  const handleMarkAllRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await markAllNotificationsRead(token);
+    } catch {
+      console.warn('[NotificationProvider] markAllRead failed');
+    }
+  }, [token]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        kpi,
+        notifications,
+        unreadCount,
+        loading,
+        refreshing,
+        loadStats,
+        handleMarkRead,
+        handleMarkAllRead,
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  );
+}
+
+export function useNotification() {
+  const ctx = useContext(NotificationContext);
+  if (!ctx) {
+    throw new Error('useNotification must be used within NotificationProvider');
+  }
+  return ctx;
+}

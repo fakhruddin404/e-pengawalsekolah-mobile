@@ -2,6 +2,7 @@ import { api } from './apiClient';
 import * as Location from 'expo-location';
 
 import type { AuthSession } from '../context/AuthContext';
+import { downloadProfilePhoto } from './profileService';
 
 export type LoginPayload = {
   login: string;
@@ -73,6 +74,13 @@ export async function loginWithLocation(opts: {
 
   const session = toAuthSession(loginData);
   const needsEmailVerification = loginData.user?.email_verified_at === null;
+
+  // Download profile photo to local cache so Image components work on
+  // both iOS & Android without needing auth headers at render time.
+  const localPhotoUri = await downloadProfilePhoto(session.token);
+  if (localPhotoUri) {
+    session.photoUrl = localPhotoUri;
+  }
 
   return {
     ok: true as const,

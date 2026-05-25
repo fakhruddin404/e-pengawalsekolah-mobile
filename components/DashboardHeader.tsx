@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Bell, Cog } from 'lucide-react-native';
 
@@ -8,10 +7,7 @@ import { AppText } from './AppText';
 import { NotificationModal } from './NotificationModal';
 import { palette, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import {
-  fetchDashboardStats,
-  subscribeToPengawalActivity,
-} from '../services/notificationService';
+import { useNotification } from '../context/NotificationContext';
 
 const ICON_BUTTON_BG = '#F1F5F9';
 
@@ -24,68 +20,18 @@ export function DashboardHeader() {
   const { session }   = useAuth();
   const pengawalName  = session?.displayName ?? '';
   const photoUrl      = session?.photoUrl ?? null;
-  const token         = session?.token ?? '';
   const initials      = getInitials(pengawalName);
 
+  const { unreadCount } = useNotification();
   const [modalVisible, setModalVisible] = useState(false);
-  const [unreadCount, setUnreadCount]   = useState(0);
-  const [pgwId, setPgwId]               = useState('');
-
-  // Keep a ref so the Echo callback never captures a stale pgwId
-  const pgwIdRef = useRef('');
-
-  // ─── Fetch initial unread count + pgwId ─────────────────────────────────
-  const refreshCount = useCallback(() => {
-    if (!token) return;
-    fetchDashboardStats(token)
-      .then((data) => {
-        // Unread count: show immediately from first fetch
-        const unread = data.notifikasi.filter((n) => !n.is_read).length;
-        setUnreadCount(unread);
-
-        // Store pgwId so the Echo subscription can start
-        if (data.pgw_id && !pgwIdRef.current) {
-          pgwIdRef.current = data.pgw_id;
-          setPgwId(data.pgw_id);
-        }
-      })
-      .catch(() => {});
-  }, [token]);
-
-  // Fetch once on mount / when token changes
-  useEffect(() => {
-    refreshCount();
-  }, [refreshCount]);
-
-  // ─── Echo subscription — STABLE, not tied to modalVisible ───────────────
-  // This stays alive even when the modal opens/closes.
-  // Every real-time activity event increments the badge so it updates live.
-  useEffect(() => {
-    if (!token || !pgwId) return;
-
-    const unsub = subscribeToPengawalActivity(token, pgwId, () => {
-      // Always increment — even if modal is open the badge is behind it,
-      // it will show the correct value after close
-      setUnreadCount((prev) => prev + 1);
-    });
-
-    return unsub;
-    // ⚠️ Deliberately NOT including modalVisible: we want this to be stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, pgwId]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const handleOpenModal = () => {
     setModalVisible(true);
-    // Clear badge immediately — user is now viewing notifications
-    setUnreadCount(0);
   };
 
   const handleCloseModal = () => {
     setModalVisible(false);
-    // Re-sync the true unread count from server after user may have
-    // read / marked items inside the modal
-    setTimeout(() => refreshCount(), 400);
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -104,13 +50,12 @@ export function DashboardHeader() {
         {/* ── Profile section ──────────────────────────────────────────── */}
         <View className="min-w-0 flex-1 flex-row items-center">
           {photoUrl ? (
-            // expo-image supports Authorization headers on BOTH Android and iOS.
-            // RN's built-in Image ignores headers on Android → photo never loads.
+            // photoUrl is a local file:// URI — no auth headers needed,
+            // works identically on iOS and Android.
             <Image
               source={{ uri: photoUrl }}
-              headers={token ? { Authorization: `Bearer ${token}` } : undefined}
               style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0' }}
-              contentFit="cover"
+              resizeMode="cover"
             />
           ) : (
             <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200">

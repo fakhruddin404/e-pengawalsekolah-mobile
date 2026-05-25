@@ -5,6 +5,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { NotificationProvider } from '../context/NotificationContext';
 import { startLocationPing } from '../services';
 import { PELAWAT_AKTIF_SYNC_EVENT, subscribeToPelawatAktifUpdates } from '../services/realtimeService';
 import { useAutoLogoutOnAppClear } from '../services/logout';
@@ -50,17 +51,19 @@ function SessionAppCloseHandler() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <SessionLocationTracker />
-      <SessionPasLawatanRealtime />
-      <SessionAppCloseHandler />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="password-manager" />
-      </Stack>
+      <NotificationProvider>
+        <SessionLocationTracker />
+        <SessionPasLawatanRealtime />
+        <SessionAppCloseHandler />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="password-manager" />
+        </Stack>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

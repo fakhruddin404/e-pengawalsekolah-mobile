@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, TextInput, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Alert, Image, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Pencil } from 'lucide-react-native';
@@ -12,6 +11,7 @@ import { textVariants } from '../theme/typography';
 import { palette, radii, shadows, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
 import { postSendEmailVerification, postUpdateProfile } from '../services';
+import { downloadProfilePhoto } from '../services/profileService';
 
 const INPUT_BG = '#F8FAFC';
 
@@ -27,7 +27,8 @@ export default function ProfileScreen() {
   const [phoneNumber, setPhoneNumber] = useState(session?.phone ?? '');
   const [email, setEmail] = useState(session?.email ?? '');
   const [dob, setDob] = useState('');
-  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  // Local URI of a newly-picked image (shown immediately after picking)
+  const [localPickedUri, setLocalPickedUri] = useState<string | null>(null);
   const [pickedPhoto, setPickedPhoto] = useState<{
     uri: string;
     type: string;
@@ -36,7 +37,9 @@ export default function ProfileScreen() {
   const [sendingVerify, setSendingVerify] = useState(false);
 
   const initials = useMemo(() => getInitials(fullName), [fullName]);
-  const remotePhotoUrl = session?.photoUrl ?? null;
+  // session.photoUrl is always a local file:// URI (set on login + after profile save)
+  const cachedPhotoUri = session?.photoUrl ?? null;
+
   const canVerify = !!email.trim() && !!token && !sendingVerify;
 
   return (
@@ -58,20 +61,19 @@ export default function ProfileScreen() {
 
         <View style={{ alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xl }}>
           <View className="relative">
-            {localPhotoUri ? (
-              // Local picked image — no auth header needed, it's a device file
+            {localPickedUri ? (
+              // Show newly-picked image immediately from device
               <Image
-                source={{ uri: localPhotoUri }}
+                source={{ uri: localPickedUri }}
                 style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
-                contentFit="cover"
+                resizeMode="cover"
               />
-            ) : remotePhotoUrl ? (
-              // Remote server image — expo-image sends headers on Android too
+            ) : cachedPhotoUri ? (
+              // session.photoUrl is a local file:// URI — no auth headers needed
               <Image
-                source={{ uri: `${remotePhotoUrl.split('?')[0]}?t=${Date.now()}` }}
-                headers={token ? { Authorization: `Bearer ${token}` } : undefined}
+                source={{ uri: cachedPhotoUri }}
                 style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
-                contentFit="cover"
+                resizeMode="cover"
               />
             ) : (
               <View className="h-24 w-24 items-center justify-center rounded-full bg-slate-200">
@@ -96,7 +98,7 @@ export default function ProfileScreen() {
                 if (!result.canceled) {
                   const asset = result.assets?.[0];
                   const uri = asset?.uri ?? null;
-                  setLocalPhotoUri(uri);
+                  setLocalPickedUri(uri); // show immediately
                   if (uri) {
                     const originalName = asset?.fileName ?? 'profile.jpg';
                     const ext =
@@ -106,8 +108,6 @@ export default function ProfileScreen() {
                       asset?.mimeType ??
                       (ext === 'png' ? 'image/png' : 'image/jpeg');
 
-                    // On Android, ImagePicker may return `content://...` URIs.
-                    // Copy to cache so multipart upload works reliably.
                     let uploadUri = uri;
                     if (uri.startsWith('content://')) {
                       const safeExt = ext === 'png' ? 'png' : 'jpg';
@@ -116,16 +116,11 @@ export default function ProfileScreen() {
                         await FileSystem.copyAsync({ from: uri, to: dest });
                         uploadUri = dest;
                       } catch {
-                        // If copy fails, fall back to the original URI.
                         uploadUri = uri;
                       }
                     }
 
-                    setPickedPhoto({
-                      uri: uploadUri,
-                      type,
-                      name: originalName,
-                    });
+                    setPickedPhoto({ uri: uploadUri, type, name: originalName });
                   } else {
                     setPickedPhoto(null);
                   }
@@ -191,31 +186,25 @@ export default function ProfileScreen() {
                 ...(pickedPhoto ? { photo: pickedPhoto } : {}),
               });
 
-              // 2. Update session dalam React Context (UI berubah secara automatik)
-              const rawPhotoUrl =
-                res?.photo_url ??
-                res?.photoUrl ??
-                res?.user?.pengawal?.photo_url ??
-                res?.data?.photo_url ??
-                session.photoUrl ??
-                null;
+              // Re-download photo from server to refresh the local cache URI.
+              // This ensures Header, Settings and Profile all show the latest photo.
+              const freshLocalUri = pickedPhoto
+                ? await downloadProfilePhoto(token)
+                : null;
 
-              // If a new photo was uploaded, append a cache-bust timestamp so that
-              // React Native Image (which caches by URL) fetches the new file instead
-              // of serving the stale cached version from the old upload.
-              const nextPhotoUrl =
-                pickedPhoto && rawPhotoUrl
-                  ? `${rawPhotoUrl.split('?')[0]}?ts=${Date.now()}`
-                  : rawPhotoUrl;
-
+              // Update session — context propagates to DashboardHeader + Settings automatically
               setSession({
                 ...session,
                 displayName: fullName,
                 email: email,
                 phone: phoneNumber,
                 ic: icNumber,
-                photoUrl: nextPhotoUrl,
+                // Use freshly-downloaded local URI if photo was uploaded, else keep current
+                photoUrl: freshLocalUri ?? session.photoUrl ?? null,
               });
+
+              // Clear the picked preview now that session reflects server state
+              if (freshLocalUri) setLocalPickedUri(null);
 
               // 3. Maklumkan kepada user
               if (res.email_changed) {

@@ -1,4 +1,5 @@
-import { api } from './apiClient';
+import * as FileSystem from 'expo-file-system';
+import { api, API_BASE_URL } from './apiClient';
 
 export async function postUpdateProfile(
   token: string,
@@ -51,5 +52,43 @@ export async function postUpdateProfile(
   }
 
   throw lastError;
+}
+
+/**
+ * Download the pengawal's profile photo from the authenticated server endpoint
+ * to a local cache file.  Returns a `file://...` URI that any <Image> component
+ * can display on BOTH iOS and Android without needing auth headers.
+ *
+ * Call this:
+ *   - after login  (authService.loginWithLocation)
+ *   - after profile save (if a new photo was uploaded)
+ *
+ * Uses the last 12 non-symbol chars of the token as a per-user filename suffix
+ * so different accounts on the same device don't share a stale cache entry.
+ */
+export async function downloadProfilePhoto(token: string): Promise<string | null> {
+  if (!token) return null;
+
+  // The authenticated photo endpoint
+  const remoteUrl = `${API_BASE_URL}/me/photo`;
+
+  // Unique filename per token so different users/sessions don't collide
+  const suffix = token.slice(-12).replace(/[^a-zA-Z0-9]/g, '');
+  const filename = `pgw_photo_${suffix}.jpg`;
+  const localUri = `${FileSystem.cacheDirectory}${filename}`;
+
+  try {
+    const result = await FileSystem.downloadAsync(remoteUrl, localUri, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Treat any non-200 (e.g. 302 redirect to ui-avatars, 401, 404) as "no photo"
+    if (result.status === 200) {
+      return result.uri; // file:// path — works on iOS + Android without headers
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
