@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Bell, Cog } from 'lucide-react-native';
@@ -7,7 +7,10 @@ import { AppText } from './AppText';
 import { NotificationModal } from './NotificationModal';
 import { palette, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { fetchDashboardStats } from '../services/notificationService';
+import {
+  fetchDashboardStats,
+  subscribeToPengawalActivity,
+} from '../services/notificationService';
 
 const ICON_BUTTON_BG = '#F1F5F9';
 
@@ -19,28 +22,64 @@ export function DashboardHeader() {
   const router = useRouter();
   const { session } = useAuth();
   const pengawalName = session?.displayName ?? '';
-  const photoUrl = session?.photoUrl ?? null;
-  const token = session?.token ?? '';
-  const initials = getInitials(pengawalName);
+  const photoUrl     = session?.photoUrl ?? null;
+  const token        = session?.token ?? '';
+  const initials     = getInitials(pengawalName);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount]   = useState(0);
+  const [pgwId, setPgwId]               = useState('');
 
-  // Fetch unread count on mount (lightweight — only reads the count from stats)
+  // Keep a ref so the real-time handler can always read the latest count
+  const unreadRef = useRef(0);
   useEffect(() => {
+    unreadRef.current = unreadCount;
+  }, [unreadCount]);
+
+  // ─── Fetch initial unread count + pgwId on mount ─────────────────────────
+  const refreshCount = () => {
     if (!token) return;
     fetchDashboardStats(token)
       .then((data) => {
         const unread = data.notifikasi.filter((n) => !n.is_read).length;
         setUnreadCount(unread);
+        unreadRef.current = unread;
+        if (data.pgw_id) setPgwId(data.pgw_id);
       })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // ─── Real-time subscription: increment badge when new activity arrives ────
+  useEffect(() => {
+    if (!token || !pgwId) return;
+
+    const unsub = subscribeToPengawalActivity(token, pgwId, () => {
+      // Only increment when the modal is closed — if it's open the list handles it
+      if (!modalVisible) {
+        setUnreadCount((prev) => prev + 1);
+      }
+    });
+
+    return unsub;
+  }, [token, pgwId, modalVisible]);
+
+  // ─── Open modal and reset badge optimistically ────────────────────────────
   const handleOpenModal = () => {
     setModalVisible(true);
-    // Optimistically clear badge when user opens the panel
     setUnreadCount(0);
+    unreadRef.current = 0;
+  };
+
+  // ─── Re-sync unread count after modal closes ──────────────────────────────
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    // Short delay so mark-all-read has time to commit on the server
+    setTimeout(() => refreshCount(), 500);
   };
 
   return (
@@ -75,18 +114,15 @@ export function DashboardHeader() {
             <AppText variant="caption" style={{ color: palette.primary, fontWeight: '600' }}>
               Hi, WelcomeBack
             </AppText>
-            <AppText
-              variant="h3"
-              numberOfLines={1}
-            >
+            <AppText variant="h3" numberOfLines={1}>
               {pengawalName || '…'}
             </AppText>
           </View>
         </View>
 
         <View className="ml-2 flex-row shrink-0 items-center gap-2">
-          {/* Bell button with numeric badge */}
-          <View className="relative">
+          {/* ── Bell button + numeric badge ───────────────────────────────── */}
+          <View style={{ position: 'relative' }}>
             <Pressable
               onPress={handleOpenModal}
               className="h-10 w-10 items-center justify-center rounded-full"
@@ -97,37 +133,42 @@ export function DashboardHeader() {
               <Bell size={18} color={palette.text} />
             </Pressable>
 
-            {/* Badge — shows numeric count when > 0, otherwise a plain dot */}
+            {/* Numeric badge (red pill, shown when unreadCount > 0) */}
             {unreadCount > 0 ? (
               <View
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  right: 0,
-                  minWidth: 16,
-                  height: 16,
-                  borderRadius: 8,
+                  top: -2,
+                  right: -4,
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
                   backgroundColor: '#EF4444',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  paddingHorizontal: 3,
+                  paddingHorizontal: 4,
                   borderWidth: 1.5,
                   borderColor: '#ffffff',
                 }}
               >
                 <AppText
                   variant="caption"
-                  style={{ color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 12 }}
+                  style={{ color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 13 }}
                 >
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {unreadCount > 9 ? '9+' : String(unreadCount)}
                 </AppText>
               </View>
             ) : (
+              /* Plain blue dot (default "online" indicator when nothing unread) */
               <View
-                className="absolute h-2.5 w-2.5 rounded-full bg-primary"
                 style={{
+                  position: 'absolute',
                   top: 4,
                   right: 4,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: palette.primary,
                   borderWidth: 2,
                   borderColor: '#ffffff',
                 }}
@@ -149,7 +190,7 @@ export function DashboardHeader() {
 
       <NotificationModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={handleCloseModal}
       />
     </>
   );
@@ -159,7 +200,7 @@ function getInitials(name: string) {
   const cleaned = (name ?? '').trim();
   if (!cleaned) return '';
   const parts = cleaned.split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '';
+  const first  = parts[0]?.[0] ?? '';
   const second = parts.length > 1 ? parts[1]?.[0] ?? '' : parts[0]?.[1] ?? '';
   return (first + second).toUpperCase();
 }
