@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, TextInput, View } from 'react-native';
+import { Alert, Pressable, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Pencil } from 'lucide-react-native';
@@ -58,18 +59,19 @@ export default function ProfileScreen() {
         <View style={{ alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xl }}>
           <View className="relative">
             {localPhotoUri ? (
+              // Local picked image — no auth header needed, it's a device file
               <Image
                 source={{ uri: localPhotoUri }}
-                className="h-24 w-24 rounded-full bg-slate-200"
+                style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
+                contentFit="cover"
               />
             ) : remotePhotoUrl ? (
+              // Remote server image — expo-image sends headers on Android too
               <Image
-                source={{
-                  // Add a timestamp to the URL to avoid caching issues
-                  uri: `${remotePhotoUrl}?t=${Date.now()}`,
-                  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                }}
-                className="h-24 w-24 rounded-full bg-slate-200"
+                source={{ uri: `${remotePhotoUrl.split('?')[0]}?t=${Date.now()}` }}
+                headers={token ? { Authorization: `Bearer ${token}` } : undefined}
+                style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
+                contentFit="cover"
               />
             ) : (
               <View className="h-24 w-24 items-center justify-center rounded-full bg-slate-200">
@@ -190,13 +192,22 @@ export default function ProfileScreen() {
               });
 
               // 2. Update session dalam React Context (UI berubah secara automatik)
-              const nextPhotoUrl =
+              const rawPhotoUrl =
                 res?.photo_url ??
                 res?.photoUrl ??
                 res?.user?.pengawal?.photo_url ??
                 res?.data?.photo_url ??
                 session.photoUrl ??
                 null;
+
+              // If a new photo was uploaded, append a cache-bust timestamp so that
+              // React Native Image (which caches by URL) fetches the new file instead
+              // of serving the stale cached version from the old upload.
+              const nextPhotoUrl =
+                pickedPhoto && rawPhotoUrl
+                  ? `${rawPhotoUrl.split('?')[0]}?ts=${Date.now()}`
+                  : rawPhotoUrl;
+
               setSession({
                 ...session,
                 displayName: fullName,
