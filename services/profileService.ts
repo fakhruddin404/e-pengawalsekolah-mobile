@@ -87,22 +87,28 @@ export async function downloadProfilePhoto(token: string): Promise<string | null
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    // Accept 200 (real photo) or 200-after-redirect (ui-avatars fallback).
     if (result.status === 200) {
       // Guard against accidentally caching an HTML error page as an image.
-      const contentType = (result.headers?.['content-type'] ?? '').toLowerCase();
+      const contentType = (result.headers?.['content-type'] ?? result.headers?.['Content-Type'] ?? '').toLowerCase();
       const isImage =
         contentType.startsWith('image/') ||
         contentType === '' ||           // some servers omit content-type
         contentType === 'application/octet-stream';
 
       if (isImage) {
-        return result.uri; // file:// path — works on iOS + Android without auth headers
+        // Append a timestamp to force React Native's <Image> to bypass memory cache
+        // and reload the newly downloaded file.
+        return `${result.uri}?ts=${Date.now()}`; 
+      } else {
+        console.log('[downloadProfilePhoto] Not an image. Content-Type:', contentType);
       }
+    } else {
+      console.log('[downloadProfilePhoto] Failed with status:', result.status);
     }
 
     return null;
-  } catch {
+  } catch (e: any) {
+    console.log('[downloadProfilePhoto] Exception:', e?.message);
     return null;
   }
 }
