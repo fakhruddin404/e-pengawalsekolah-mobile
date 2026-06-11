@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useRef,
@@ -17,11 +17,6 @@ import {
 import {
   Bell,
   CheckCheck,
-  ClipboardList,
-  LogOut,
-  ShieldAlert,
-  ShieldCheck,
-  User,
   X,
 } from 'lucide-react-native';
 
@@ -41,34 +36,29 @@ const SURFACE = '#F8FAFC';
 
 const TYPE_META: Record<
   string,
-  { icon: React.FC<any>; color: string; bg: string; label: string }
+  { color: string; bg: string; label: string }
 > = {
   rondaan_created: {
-    icon: ShieldCheck,
     color: BLUE,
     bg: '#EFF6FF',
     label: 'Rondaan',
   },
   sos_created: {
-    icon: ShieldAlert,
     color: RED,
     bg: '#FEF2F2',
     label: 'SOS',
   },
   laporan_created: {
-    icon: ClipboardList,
     color: ORANGE,
     bg: '#FFF7ED',
     label: 'Laporan',
   },
   pelawat_created: {
-    icon: User,
     color: GREEN,
     bg: '#F0FDF4',
     label: 'Pelawat',
   },
   pelawat_updated: {
-    icon: LogOut,
     color: PURPLE,
     bg: '#F5F3FF',
     label: 'Pelawat Keluar',
@@ -78,7 +68,6 @@ const TYPE_META: Record<
 function getTypeMeta(type: string) {
   return (
     TYPE_META[type] ?? {
-      icon: Bell,
       color: palette.muted,
       bg: SURFACE,
       label: 'Notifikasi',
@@ -174,15 +163,11 @@ type NotifCardProps = {
 
 function NotifCard({ item, onPress }: NotifCardProps) {
   const meta = getTypeMeta(item.type);
-  const IconComp = meta.icon;
 
   return (
     <Pressable
       onPress={() => onPress(item.id)}
       style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
         paddingVertical: 12,
         paddingHorizontal: spacing.md,
         backgroundColor: item.is_read ? '#fff' : '#F0F7FF',
@@ -191,72 +176,60 @@ function NotifCard({ item, onPress }: NotifCardProps) {
         borderLeftColor: meta.color,
       })}
     >
-      {/* Icon chip */}
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 10,
-          backgroundColor: meta.bg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          marginTop: 1,
-        }}
-      >
-        <IconComp size={18} color={meta.color} />
-      </View>
-
-      {/* Content */}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+      {/* Type label + unread dot */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <View
+          style={{
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+            borderRadius: 99,
+            backgroundColor: meta.bg,
+          }}
+        >
+          <AppText
+            variant="caption"
+            style={{ color: meta.color, fontWeight: '700', fontSize: 10 }}
+          >
+            {meta.label}
+          </AppText>
+        </View>
+        {!item.is_read && (
           <View
             style={{
-              paddingHorizontal: 7,
-              paddingVertical: 2,
-              borderRadius: 99,
-              backgroundColor: meta.bg,
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: BLUE,
             }}
-          >
-            <AppText
-              variant="caption"
-              style={{ color: meta.color, fontWeight: '700', fontSize: 10 }}
-            >
-              {meta.label}
-            </AppText>
-          </View>
-          {!item.is_read && (
-            <View
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: BLUE,
-              }}
-            />
-          )}
-        </View>
-        <AppText
-          variant="bodySm"
-          style={{ fontWeight: item.is_read ? '400' : '700', color: palette.text }}
-          numberOfLines={1}
-        >
-          {item.title}
-        </AppText>
-        <AppText
-          variant="caption"
-          style={{ color: palette.muted, marginTop: 1 }}
-          numberOfLines={2}
-        >
-          {item.message}
-        </AppText>
-        <AppText
-          variant="caption"
-          style={{ color: palette.muted, marginTop: 4, fontSize: 10 }}
-        >
-          {formatRelativeTime(item.occurred_at)}
-        </AppText>
+          />
+        )}
       </View>
+
+      {/* Title */}
+      <AppText
+        variant="bodySm"
+        style={{ fontWeight: item.is_read ? '400' : '700', color: palette.text }}
+        numberOfLines={1}
+      >
+        {item.title}
+      </AppText>
+
+      {/* Message */}
+      <AppText
+        variant="caption"
+        style={{ color: palette.muted, marginTop: 1 }}
+        numberOfLines={2}
+      >
+        {item.message}
+      </AppText>
+
+      {/* Time */}
+      <AppText
+        variant="caption"
+        style={{ color: palette.muted, marginTop: 4, fontSize: 10 }}
+      >
+        {formatRelativeTime(item.occurred_at)}
+      </AppText>
     </Pressable>
   );
 }
