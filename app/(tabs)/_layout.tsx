@@ -22,6 +22,11 @@ export default function TabsLayout() {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Persistent header — renders once, never remounts on tab switch */}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#ffffff' }}>
+        <DashboardHeader />
+      </SafeAreaView>
+
       <Tabs
         tabBar={(props) => <MainTabBar {...props} />}
         screenOptions={{
@@ -68,18 +73,6 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-
-      {/* Persistent header — absolutely overlaid on top of all tab screens.
-          Renders once, never remounts on tab switch. Notification badge stays
-          consistent because this component is never destroyed. */}
-      <SafeAreaView
-        edges={['top']}
-        pointerEvents="box-none"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#ffffff' }}
-      >
-        <DashboardHeader />
-      </SafeAreaView>
     </View>
   );
 }
-

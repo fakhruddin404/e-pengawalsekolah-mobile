@@ -102,7 +102,9 @@ export default function SenaraiPelawatAktif() {
   }, [items, query]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={[]}>
+
+
       <FlatList
         data={searchPelawatAktif}
         keyExtractor={(item) => item.id}
