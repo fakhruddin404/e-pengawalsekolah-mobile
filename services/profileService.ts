@@ -59,6 +59,10 @@ export async function postUpdateProfile(
  * to a local cache file.  Returns a `file://...` URI that any <Image> component
  * can display on BOTH iOS and Android without needing auth headers.
  *
+ * Handles two server responses:
+ *  - 200  → streams the real photo file directly (user has uploaded a photo)
+ *  - 302  → redirects to ui-avatars.com fallback (user has no photo yet)
+ *
  * Call this:
  *   - after login  (authService.loginWithLocation)
  *   - after profile save (if a new photo was uploaded)
@@ -69,26 +73,38 @@ export async function postUpdateProfile(
 export async function downloadProfilePhoto(token: string): Promise<string | null> {
   if (!token) return null;
 
-  // The authenticated photo endpoint
   const remoteUrl = `${API_BASE_URL}/me/photo`;
-
-  // Unique filename per token so different users/sessions don't collide
-  const suffix = token.slice(-12).replace(/[^a-zA-Z0-9]/g, '');
-  const filename = `pgw_photo_${suffix}.jpg`;
-  const localUri = `${FileSystem.cacheDirectory}${filename}`;
+  const suffix    = token.slice(-12).replace(/[^a-zA-Z0-9]/g, '');
+  const filename  = `pgw_photo_${suffix}.jpg`;
+  const localUri  = `${FileSystem.cacheDirectory}${filename}`;
 
   try {
+    // First attempt: download with auth headers.
+    // If the server has a real photo it returns 200 with the image binary.
+    // If not it issues a 302 redirect — expo-file-system follows it but the
+    // redirect target (ui-avatars.com) drops our auth header, which is fine.
     const result = await FileSystem.downloadAsync(remoteUrl, localUri, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    // Treat any non-200 (e.g. 302 redirect to ui-avatars, 401, 404) as "no photo"
+    // Accept 200 (real photo) or 200-after-redirect (ui-avatars fallback).
     if (result.status === 200) {
-      return result.uri; // file:// path — works on iOS + Android without headers
+      // Guard against accidentally caching an HTML error page as an image.
+      const contentType = (result.headers?.['content-type'] ?? '').toLowerCase();
+      const isImage =
+        contentType.startsWith('image/') ||
+        contentType === '' ||           // some servers omit content-type
+        contentType === 'application/octet-stream';
+
+      if (isImage) {
+        return result.uri; // file:// path — works on iOS + Android without auth headers
+      }
     }
+
     return null;
   } catch {
     return null;
   }
 }
+
 

@@ -35,6 +35,7 @@ export default function ProfileScreen() {
     name: string;
   } | null>(null);
   const [sendingVerify, setSendingVerify] = useState(false);
+  const [cachedPhotoError, setCachedPhotoError] = useState(false);
 
   const initials = useMemo(() => getInitials(fullName), [fullName]);
   // session.photoUrl is always a local file:// URI (set on login + after profile save)
@@ -68,12 +69,13 @@ export default function ProfileScreen() {
                 style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
                 resizeMode="cover"
               />
-            ) : cachedPhotoUri ? (
+            ) : cachedPhotoUri && !cachedPhotoError ? (
               // session.photoUrl is a local file:// URI — no auth headers needed
               <Image
                 source={{ uri: cachedPhotoUri }}
                 style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
                 resizeMode="cover"
+                onError={() => setCachedPhotoError(true)}
               />
             ) : (
               <View className="h-24 w-24 items-center justify-center rounded-full bg-slate-200">

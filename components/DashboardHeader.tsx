@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Bell, Cog } from 'lucide-react-native';
@@ -24,6 +24,8 @@ export function DashboardHeader() {
 
   const { unreadCount } = useNotification();
   const [modalVisible, setModalVisible] = useState(false);
+  // If the cached file:// URI becomes stale/invalid, fall back to initials
+  const [photoError, setPhotoError] = useState(false);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const handleOpenModal = () => {
@@ -49,13 +51,12 @@ export function DashboardHeader() {
       >
         {/* ── Profile section ──────────────────────────────────────────── */}
         <View className="min-w-0 flex-1 flex-row items-center">
-          {photoUrl ? (
-            // photoUrl is a local file:// URI — no auth headers needed,
-            // works identically on iOS and Android.
+          {photoUrl && !photoError ? (
             <Image
               source={{ uri: photoUrl }}
               style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0' }}
               resizeMode="cover"
+              onError={() => setPhotoError(true)}
             />
           ) : (
             <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200">

@@ -77,10 +77,11 @@ export async function loginWithLocation(opts: {
 
   // Download profile photo to local cache so Image components work on
   // both iOS & Android without needing auth headers at render time.
+  // If download fails or returns non-image content, set photoUrl to null
+  // so the initials avatar fallback is shown (never keep the raw server URL
+  // since React Native Image cannot attach auth headers to it).
   const localPhotoUri = await downloadProfilePhoto(session.token);
-  if (localPhotoUri) {
-    session.photoUrl = localPhotoUri;
-  }
+  session.photoUrl = localPhotoUri; // null = no photo / fallback to initials
 
   return {
     ok: true as const,

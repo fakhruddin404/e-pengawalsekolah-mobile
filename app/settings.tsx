@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, Image, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,6 +19,7 @@ export default function SettingsScreen() {
   const name     = session?.displayName ?? '';
   const photoUrl = session?.photoUrl ?? null;
   const initials = getInitials(name);
+  const [photoError, setPhotoError] = useState(false);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -38,11 +40,12 @@ export default function SettingsScreen() {
 
         <View style={{ alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xl }}>
           {/* Photo or initials fallback — same logic as DashboardHeader */}
-          {photoUrl ? (
+          {photoUrl && !photoError ? (
             <Image
               source={{ uri: photoUrl }}
               style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E2E8F0' }}
               resizeMode="cover"
+              onError={() => setPhotoError(true)}
             />
           ) : (
             <AvatarCircle initials={initials} />
