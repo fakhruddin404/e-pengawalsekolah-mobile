@@ -1,8 +1,7 @@
+import type React from 'react';
 import {
-  useCallback,
   useEffect,
   useRef,
-  useState,
 } from 'react';
 import {
   ActivityIndicator,
@@ -10,7 +9,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
@@ -97,7 +95,7 @@ type KpiCardProps = {
   color: string;
   gradStart: string;
   gradEnd: string;
-  icon: React.FC<{ size: number; color: string }>;
+  icon: React.ComponentType<{ size: number; color: string }>;
 };
 
 function KpiCard({ label, value, color, gradStart, gradEnd, icon: Icon }: KpiCardProps) {
