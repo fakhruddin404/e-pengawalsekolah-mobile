@@ -18,7 +18,6 @@ import {
 import * as Location from 'expo-location';
 
 import { AppText } from '../../components/AppText';
-import { DashboardHeader } from '../../components/DashboardHeader';
 import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -254,13 +253,7 @@ export default function HomeMapScreen() {
           </View>
         )}
 
-        <SafeAreaView
-          edges={['top']}
-          pointerEvents="box-none"
-          className="absolute left-0 right-0 top-0 bg-white"
-        >
-          <DashboardHeader />
-        </SafeAreaView>
+
 
         <View
           pointerEvents="box-none"

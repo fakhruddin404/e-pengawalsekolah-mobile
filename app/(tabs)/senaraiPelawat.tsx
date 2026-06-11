@@ -15,7 +15,6 @@ import { Calendar, Clock, Plus, Search } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { textVariants } from '../../theme/typography';
 import { palette, radii, shadows, spacing } from '../../theme/ui';
-import { DashboardHeader } from '../../components/DashboardHeader';
 import { useAuth } from '../../context/AuthContext';
 import { getPelawatAktifUi, postKeluarPasLawatan } from '../../services';
 import { PELAWAT_AKTIF_SYNC_EVENT } from '../../services/realtimeService';
@@ -103,8 +102,8 @@ export default function SenaraiPelawatAktif() {
   }, [items, query]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <DashboardHeader />
+    <SafeAreaView className="flex-1 bg-white" edges={[]}>
+
 
       <FlatList
         data={searchPelawatAktif}

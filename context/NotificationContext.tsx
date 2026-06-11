@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -39,6 +40,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [kpi, setKpi] = useState<DashboardKpi>({ rondaan_hari_ini: 0, pelawat_hari_ini: 0 });
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [pgwId, setPgwId] = useState('');
+  // Track whether the very first fetch has completed so we never
+  // hide the badge behind a spinner on subsequent background polls.
+  const initialLoadDone = useRef(false);
 
   const loadStats = useCallback(
     async (isRefresh = false) => {
@@ -48,7 +52,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        isRefresh ? setRefreshing(true) : setLoading(true);
+        // Only show the loading spinner on the very first fetch.
+        // Background polls and pull-to-refresh should not set loading=true
+        // because that zeros out unreadCount and hides the badge.
+        if (!initialLoadDone.current) {
+          setLoading(true);
+        } else if (isRefresh) {
+          setRefreshing(true);
+        }
         const data = await fetchDashboardStats(token);
         setKpi(data.kpi);
         setNotifications(data.notifikasi);
@@ -56,6 +67,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.warn('[NotificationProvider] fetchDashboardStats failed:', e);
       } finally {
+        initialLoadDone.current = true;
         setLoading(false);
         setRefreshing(false);
       }
@@ -67,6 +79,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  // ── Silent polling fallback (30 s) ─────────────────────────────────────────
+  // Guarantees the badge count stays fresh even when the WebSocket
+  // (Reverb/Pusher) connection is unavailable or drops silently.
+  useEffect(() => {
+    if (!token) return;
+    const id = setInterval(() => {
+      // Run silently — no spinner, no refreshing indicator.
+      loadStats(false);
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [token, loadStats]);
 
   // Subscribe to real-time events
   useEffect(() => {

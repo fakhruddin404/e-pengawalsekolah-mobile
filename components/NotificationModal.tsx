@@ -275,7 +275,6 @@ export function NotificationModal({ visible, onClose }: NotificationModalProps) 
     unreadCount,
     loading,
     refreshing,
-    loadStats,
     handleMarkRead,
     handleMarkAllRead,
   } = useNotification();
@@ -315,13 +314,8 @@ export function NotificationModal({ visible, onClose }: NotificationModalProps) 
     }
   }, [visible, slideAnim, backdropAnim]);
 
-  useEffect(() => {
-    if (visible) {
-      // Optional: Refresh when modal is opened to ensure freshness
-      // We don't want to show loading spinner every time, so run silently
-      loadStats(true);
-    }
-  }, [visible, loadStats]);
+  // Data is kept fresh by NotificationContext's polling + real-time subscription.
+  // No need to re-fetch when modal opens.
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
