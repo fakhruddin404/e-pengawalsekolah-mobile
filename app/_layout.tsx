@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthProvider, useAuth, usePhotoSync } from '../context/AuthContext';
 import { NotificationProvider } from '../context/NotificationContext';
 import { startLocationPing } from '../services';
 import { PELAWAT_AKTIF_SYNC_EVENT, subscribeToPelawatAktifUpdates } from '../services/realtimeService';
@@ -48,6 +48,11 @@ function SessionAppCloseHandler() {
   return null;
 }
 
+function PhotoSyncHandler() {
+  usePhotoSync();
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <AuthProvider>
@@ -55,6 +60,7 @@ export default function RootLayout() {
         <SessionLocationTracker />
         <SessionPasLawatanRealtime />
         <SessionAppCloseHandler />
+        <PhotoSyncHandler />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
