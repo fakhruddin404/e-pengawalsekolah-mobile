@@ -1,6 +1,11 @@
+// expo-file-system/legacy digunakan kerana versi baru tidak export
+// cacheDirectory dan downloadAsync secara langsung.
 import * as FileSystem from 'expo-file-system/legacy';
 import { api, API_BASE_URL } from './apiClient';
 
+// ─────────────────────────────────────────────────────────────
+// Kemaskini profil pengawal (nama, email, telefon, ic, gambar)
+// ─────────────────────────────────────────────────────────────
 export async function postUpdateProfile(
   token: string,
   data: { name: string; email: string; phone: string; ic: string; photo?: any }
@@ -12,105 +17,87 @@ export async function postUpdateProfile(
   formData.append('ic', data.ic);
 
   if (data.photo) {
-    const normalized =
+    // Normalkan photo kepada objek { uri, type, name } jika ia hanya string URI
+    const photo =
       typeof data.photo === 'string'
-        ? ({
-            uri: data.photo,
-            type: 'image/jpeg',
-            name: 'profile.jpg',
-          } as any)
+        ? ({ uri: data.photo, type: 'image/jpeg', name: 'profile.jpg' } as any)
         : data.photo;
-    formData.append('photo', normalized as any);
+    formData.append('photo', photo);
   }
 
-  const tried: string[] = [];
-  let lastError: any;
+  const res = await api.post('update-profile', formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data',
+      Accept: 'application/json',
+    },
+  });
 
-  const path = 'update-profile';
-  tried.push(path);
-  try {
-    const res = await api.post(path, formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data',
-        Accept: 'application/json',
-      },
-    });
-    return res.data;
-  } catch (e: any) {
-    lastError = e;
-    const status = e?.response?.status;
-    if (status !== 404) throw e;
-  }
-
-  const status = lastError?.response?.status;
-  if (status === 404) {
-    const base = (api.defaults.baseURL ?? '').toString().replace(/\/+$/, '');
-    throw new Error(
-      `Backend 404. Tried: ${tried.map((p) => `${base}/${p}`).join(' | ')}`
-    );
-  }
-
-  throw lastError;
+  return res.data;
 }
 
-/**
- * Download the pengawal's profile photo from the authenticated server endpoint
- * to a local cache file.  Returns a `file://...` URI that any <Image> component
- * can display on BOTH iOS and Android without needing auth headers.
- *
- * Handles two server responses:
- *  - 200  → streams the real photo file directly (user has uploaded a photo)
- *  - 302  → redirects to ui-avatars.com fallback (user has no photo yet)
- *
- * Call this:
- *   - after login  (authService.loginWithLocation)
- *   - after profile save (if a new photo was uploaded)
- *
- * Uses the last 12 non-symbol chars of the token as a per-user filename suffix
- * so different accounts on the same device don't share a stale cache entry.
- */
+// ─────────────────────────────────────────────────────────────
+// Muat turun gambar profil dari server ke cache tempatan.
+//
+// Kenapa perlu download dulu?
+//   → React Native <Image> tidak boleh hantar Authorization header.
+//   → Endpoint /me/photo memerlukan token untuk keselamatan.
+//   → Jadi kita download sekali, simpan dalam cache peranti (file://),
+//     dan bagi URI local itu kepada <Image>.
+//
+// Dipanggil bila:
+//   1. Selepas login  (authService.ts → loginWithLocation)
+//   2. Selepas upload gambar baru  (profile.tsx → onSave)
+//   3. Setiap kali app kembali ke foreground  (AuthContext → usePhotoSync)
+//
+// Return:
+//   - string  → URI file:// jika berjaya (contoh: file:///cache/pgw_photo_xxx.jpg?ts=...)
+//   - null    → gagal atau tiada gambar (akan papar inisial sebagai fallback)
+// ─────────────────────────────────────────────────────────────
 export async function downloadProfilePhoto(token: string): Promise<string | null> {
   if (!token) return null;
 
+  // URL server + path cache tempatan yang unik bagi setiap akaun
   const remoteUrl = `${API_BASE_URL}/me/photo`;
   const suffix    = token.slice(-12).replace(/[^a-zA-Z0-9]/g, '');
-  const filename  = `pgw_photo_${suffix}.jpg`;
-  const localUri  = `${FileSystem.cacheDirectory}${filename}`;
+  const localUri  = `${FileSystem.cacheDirectory}pgw_photo_${suffix}.jpg`;
 
   try {
-    // First attempt: download with auth headers.
-    // If the server has a real photo it returns 200 with the image binary.
-    // If not it issues a 302 redirect — expo-file-system follows it but the
-    // redirect target (ui-avatars.com) drops our auth header, which is fine.
+    // Download dengan Authorization header.
+    // Server akan return:
+    //   200 → gambar sebenar (binary image)
+    //   3xx → redirect ke ui-avatars.com (jika tiada gambar) — expo ikut redirect secara automatik
     const result = await FileSystem.downloadAsync(remoteUrl, localUri, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (result.status === 200) {
-      // Guard against accidentally caching an HTML error page as an image.
-      const contentType = (result.headers?.['content-type'] ?? result.headers?.['Content-Type'] ?? '').toLowerCase();
-      const isImage =
-        contentType.startsWith('image/') ||
-        contentType === '' ||           // some servers omit content-type
-        contentType === 'application/octet-stream';
-
-      if (isImage) {
-        // Append a timestamp to force React Native's <Image> to bypass memory cache
-        // and reload the newly downloaded file.
-        return `${result.uri}?ts=${Date.now()}`; 
-      } else {
-        console.log('[downloadProfilePhoto] Not an image. Content-Type:', contentType);
-      }
-    } else {
-      console.log('[downloadProfilePhoto] Failed with status:', result.status);
+    if (result.status !== 200) {
+      console.log('[downloadProfilePhoto] Status bukan 200:', result.status);
+      return null;
     }
 
-    return null;
+    // Pastikan yang diterima betul-betul gambar, bukan halaman error HTML
+    const contentType = (
+      result.headers?.['content-type'] ??
+      result.headers?.['Content-Type'] ??
+      ''
+    ).toLowerCase();
+
+    const isImage =
+      contentType.startsWith('image/') ||
+      contentType === '' ||                      // sesetengah server tak hantar content-type
+      contentType === 'application/octet-stream';
+
+    if (!isImage) {
+      console.log('[downloadProfilePhoto] Bukan gambar. Content-Type:', contentType);
+      return null;
+    }
+
+    // Tambah ?ts= supaya React Native reload dari disk (bypass memory cache)
+    return `${result.uri}?ts=${Date.now()}`;
+
   } catch (e: any) {
     console.log('[downloadProfilePhoto] Exception:', e?.message);
     return null;
   }
 }
-
-

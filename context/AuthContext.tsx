@@ -11,11 +11,13 @@ import {
 import { AppState, type AppStateStatus } from 'react-native';
 import { downloadProfilePhoto } from '../services/profileService';
 
-// define user session data
+// ─────────────────────────────────────────────────────────────
+// Jenis data sesi pengguna yang disimpan selepas login
+// ─────────────────────────────────────────────────────────────
 export type AuthSession = {
-  token: string;
-  displayName: string;
-  photoUrl?: string | null;
+  token: string;         // Bearer token untuk API calls
+  displayName: string;   // Nama pengawal untuk dipapar
+  photoUrl?: string | null; // URI file:// tempatan (bukan URL server)
   email?: string | null;
   phone?: string | null;
   ic?: string | null;
@@ -29,6 +31,10 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// ─────────────────────────────────────────────────────────────
+// AuthProvider — bungkus seluruh app supaya semua screen
+// boleh baca dan tulis sesi melalui useAuth()
+// ─────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(null);
 
@@ -46,25 +52,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!ctx) throw new Error('useAuth mesti digunakan dalam AuthProvider');
   return ctx;
 }
 
-/**
- * Auto-refreshes profile photo:
- *  1. Immediately when the user logs in (token changes from null → value)
- *  2. Every time the app returns to foreground
- *
- * Bug that was here before: empty deps [] meant this only ran at mount when
- * session = null (a no-op), so the photo never synced after login.
- */
+// ─────────────────────────────────────────────────────────────
+// usePhotoSync — auto-refresh gambar profil tanpa perlu logout
+//
+// Dipanggil dalam dua situasi:
+//   1. Masa login (session.token bertukar dari null → ada nilai)
+//   2. Setiap kali app kembali ke foreground (user tukar app, pastu balik)
+//
+// Kenapa perlu ini?
+//   → photoUrl disimpan dalam session masa login sahaja.
+//   → Kalau gambar diupload selepas login (contoh: melalui web admin),
+//     session lama masih simpan photoUrl = null.
+//   → Hook ini refresh gambar secara senyap tanpa user perlu logout/login semula.
+// ─────────────────────────────────────────────────────────────
 export function usePhotoSync() {
   const { session, setSession } = useAuth();
 
+  // Ref untuk baca session terkini dalam AppState callback
+  // (tanpa ini, callback akan baca nilai lama - "stale closure")
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
   useEffect(() => {
-    // Not logged in yet — nothing to do
+    // Belum login — tidak perlu buat apa-apa
     if (!session?.token) return;
 
     let cancelled = false;
@@ -73,31 +87,28 @@ export function usePhotoSync() {
     async function syncPhoto() {
       try {
         const freshUri = await downloadProfilePhoto(token);
-        if (cancelled) return;
-        if (freshUri) {
-          // Always update — the ?ts= suffix changes each call, comparison would mislead
-          setSession({ ...sessionRef.current!, photoUrl: freshUri });
-        }
+        if (cancelled || !freshUri) return;
+
+        // Kemaskini session dengan URI gambar terkini
+        // Guna sessionRef supaya data lain dalam session tidak hilang
+        setSession({ ...sessionRef.current!, photoUrl: freshUri });
       } catch {
-        // Best-effort — silently ignore network/FS errors
+        // Gagal download — biarkan sahaja (gambar lama / inisial kekal)
       }
     }
 
-    // Run immediately on login (the main fix)
+    // Jalankan terus masa login
     syncPhoto();
 
-    // Also run every time the app comes back to the foreground
+    // Jalankan setiap kali app kembali ke foreground
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (next === 'active') syncPhoto();
     });
 
+    // Cleanup — batalkan jika token bertukar (logout/login semula)
     return () => {
       cancelled = true;
       sub.remove();
     };
-  }, [session?.token]); // ← KEY FIX: re-runs when token changes (login event)
-
-  // Keep a ref so AppState callback inside the effect can read the latest session
-  const sessionRef = useRef(session);
-  useEffect(() => { sessionRef.current = session; }, [session]);
+  }, [session?.token]); // Re-run bila token bertukar (login event)
 }
