@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { api, API_BASE_URL } from './apiClient';
 
 export async function postUpdateProfile(

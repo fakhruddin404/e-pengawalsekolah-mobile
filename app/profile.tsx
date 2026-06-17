@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Pencil } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 import { AppText } from '../components/AppText';
 import { textVariants } from '../theme/typography';
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
                       const safeExt = ext === 'png' ? 'png' : 'jpg';
                       const dest = `${FileSystem.Paths.cache.uri}upload_${Date.now()}.${safeExt}`;
                       try {
-                        await FileSystem.copyAsync({ from: uri, to: dest });
+                        await FileSystemLegacy.copyAsync({ from: uri, to: dest });
                         uploadUri = dest;
                       } catch {
                         uploadUri = uri;

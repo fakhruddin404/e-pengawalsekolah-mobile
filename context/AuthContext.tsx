@@ -53,47 +53,51 @@ export function useAuth(): AuthContextValue {
 }
 
 /**
- * Auto-refreshes profile photo whenever the app comes back to the foreground.
- * Mount this once at the root layout so it runs for the entire session lifetime.
+ * Auto-refreshes profile photo:
+ *  1. Immediately when the user logs in (token changes from null → value)
+ *  2. Every time the app returns to foreground
  *
- * Why: photoUrl is set at login time. If the user (or an admin) uploads a photo
- * after login, the in-memory session still holds the old (null) value until the
- * user re-logs in. This hook silently re-downloads the photo each time the app
- * becomes active and updates the session so all components reflect the new image.
+ * Bug that was here before: empty deps [] meant this only ran at mount when
+ * session = null (a no-op), so the photo never synced after login.
  */
 export function usePhotoSync() {
   const { session, setSession } = useAuth();
-  // Keep a ref so the AppState callback always reads the latest session
-  const sessionRef = useRef(session);
-  useEffect(() => { sessionRef.current = session; }, [session]);
-
-  const setSessionRef = useRef(setSession);
-  useEffect(() => { setSessionRef.current = setSession; }, [setSession]);
 
   useEffect(() => {
-    async function syncPhoto() {
-      const s = sessionRef.current;
-      if (!s?.token) return;
+    // Not logged in yet — nothing to do
+    if (!session?.token) return;
 
+    let cancelled = false;
+    const token = session.token;
+
+    async function syncPhoto() {
       try {
-        const freshUri = await downloadProfilePhoto(s.token);
-        // Only update if the URI actually changed (avoids unnecessary re-renders)
-        if (freshUri !== s.photoUrl) {
-          setSessionRef.current({ ...s, photoUrl: freshUri });
+        const freshUri = await downloadProfilePhoto(token);
+        if (cancelled) return;
+        if (freshUri) {
+          // Always update — the ?ts= suffix changes each call, comparison would mislead
+          setSession({ ...sessionRef.current!, photoUrl: freshUri });
         }
       } catch {
-        // Silently ignore — photo sync is best-effort
+        // Best-effort — silently ignore network/FS errors
       }
     }
 
-    // Sync once immediately when the hook mounts (covers the "already logged in" case)
+    // Run immediately on login (the main fix)
     syncPhoto();
 
-    // Then sync every time the app comes back to the foreground
+    // Also run every time the app comes back to the foreground
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (next === 'active') syncPhoto();
     });
 
-    return () => sub.remove();
-  }, []); // empty deps — runs once, reads latest session via refs
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [session?.token]); // ← KEY FIX: re-runs when token changes (login event)
+
+  // Keep a ref so AppState callback inside the effect can read the latest session
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
 }
