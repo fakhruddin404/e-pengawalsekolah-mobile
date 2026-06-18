@@ -253,7 +253,7 @@ export default function CreateLaporanScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={[]}>
       <View
         className="flex-row items-center justify-center bg-white"
         style={{
