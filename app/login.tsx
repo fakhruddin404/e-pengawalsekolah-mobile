@@ -3,9 +3,14 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -111,16 +116,26 @@ export default function LoginScreen() {
       <View style={styles.bgGlowTop} />
       <View style={styles.bgGlowBottom} />
 
-      <View style={styles.container}>
-        <View style={styles.brandWrap}>
-          <Image
-            source={require('../assets/images/splash.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.container}>
+              <View style={styles.brandWrap}>
+                <Image
+                  source={require('../assets/images/splash.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
 
-        <View style={styles.formCard}>
+              <View style={styles.formCard}>
           <AppText variant="h1" style={styles.title}>
             SELAMAT DATANG
           </AppText>
@@ -195,8 +210,11 @@ export default function LoginScreen() {
               </AppText>
             )}
           </Pressable>
-        </View>
-      </View>
+              </View>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -224,10 +242,13 @@ const styles = StyleSheet.create({
     left: -100,
     backgroundColor: 'rgba(145, 206, 255, 0.26)',
   },
-  container: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
+  },
+  container: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
   },
   brandWrap: {
     alignItems: 'center',
