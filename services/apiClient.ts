@@ -1,7 +1,12 @@
 import axios from 'axios';
+import { DeviceEventEmitter } from 'react-native';
 
 const DEFAULT_API_BASE_URL = 'https://e-pengawalsekolah.xyz/api/pengawal';
 const API_PREFIX = '/api/pengawal';
+
+// Event yang akan dihantar bila server balas 401 (token tidak sah / dipadam)
+// _layout.tsx akan dengar event ini dan paksa logout
+export const AUTH_EXPIRED_EVENT = 'auth:session_expired';
 
 function resolveApiBaseUrl(raw: string) {
   const fallback = DEFAULT_API_BASE_URL.replace(/\/+$/, '');
@@ -25,6 +30,35 @@ export const api = axios.create({
     Accept: 'application/json',
   },
 });
+
+// ─────────────────────────────────────────────────────────────
+// Global 401 Interceptor — Keselamatan Satu Peranti
+//
+// Bila mana-mana API call dapat respons 401 (Unauthorized):
+//   → Bermakna token telah dipadam di server (pengawal login pada peranti lain)
+//   → App akan emit AUTH_EXPIRED_EVENT
+//   → _layout.tsx mendengar event ini dan paksa logout + redirect ke /login
+//
+// Ini memastikan bila pengawal login pada Peranti B,
+// Peranti A akan dipaksa keluar secara automatik pada API call seterusnya.
+// ─────────────────────────────────────────────────────────────
+api.interceptors.response.use(
+  // Respons berjaya — biarkan terus
+  (response) => response,
+
+  // Respons ralat — semak jika 401
+  (error) => {
+    const status = error?.response?.status as number | undefined;
+
+    if (status === 401) {
+      // Emit event — SessionExpiredHandler dalam _layout.tsx akan handle logout
+      DeviceEventEmitter.emit(AUTH_EXPIRED_EVENT);
+    }
+
+    // Teruskan reject supaya caller boleh handle error mereka sendiri juga
+    return Promise.reject(error);
+  }
+);
 
 export function formatAxiosError(e: any, fallback: string) {
   const status = e?.response?.status as number | undefined;
@@ -56,4 +90,3 @@ export function formatAxiosError(e: any, fallback: string) {
 
   return e?.message ?? fallback;
 }
-
