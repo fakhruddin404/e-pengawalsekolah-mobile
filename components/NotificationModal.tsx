@@ -213,7 +213,8 @@ function NotifCard({ item, onPress }: NotifCardProps) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <View
             style={{
-              paddingHorizontal: 7,
+              paddingLeft: spacing.lg,
+              paddingRight: spacing.md,
               paddingVertical: 2,
               borderRadius: 99,
               backgroundColor: meta.bg,
