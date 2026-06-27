@@ -6,6 +6,7 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   FlatList,
   Modal,
@@ -21,6 +22,7 @@ import {
   LogOut,
   ShieldAlert,
   ShieldCheck,
+  Trash2,
   User,
   X,
 } from 'lucide-react-native';
@@ -213,8 +215,7 @@ function NotifCard({ item, onPress }: NotifCardProps) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <View
             style={{
-              paddingLeft: spacing.lg,
-              paddingRight: spacing.md,
+              paddingHorizontal: 7,
               paddingVertical: 2,
               borderRadius: 99,
               backgroundColor: meta.bg,
@@ -279,6 +280,7 @@ export function NotificationModal({ visible, onClose }: NotificationModalProps) 
     refreshing,
     handleMarkRead,
     handleMarkAllRead,
+    handleClearAll,
   } = useNotification();
 
   const slideAnim = useRef(new Animated.Value(600)).current;
@@ -458,17 +460,39 @@ export function NotificationModal({ visible, onClose }: NotificationModalProps) 
           <AppText variant="bodySm" style={{ fontWeight: '700', color: palette.text }}>
             Aktiviti Terkini
           </AppText>
-          {unreadCount > 0 && (
-            <Pressable
-              onPress={handleMarkAllRead}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-            >
-              <CheckCheck size={14} color={BLUE} />
-              <AppText variant="caption" style={{ color: BLUE, fontWeight: '600' }}>
-                Tandakan semua dibaca
-              </AppText>
-            </Pressable>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {unreadCount > 0 && (
+              <Pressable
+                onPress={handleMarkAllRead}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <CheckCheck size={14} color={BLUE} />
+                <AppText variant="caption" style={{ color: BLUE, fontWeight: '600' }}>
+                  Tandakan semua dibaca
+                </AppText>
+              </Pressable>
+            )}
+            {notifications.length > 0 && (
+              <Pressable
+                onPress={() =>
+                  Alert.alert(
+                    'Padam Semua',
+                    'Adakah anda pasti mahu memadam semua notifikasi?',
+                    [
+                      { text: 'Batal', style: 'cancel' },
+                      { text: 'Padam', style: 'destructive', onPress: handleClearAll },
+                    ]
+                  )
+                }
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Trash2 size={14} color={RED} />
+                <AppText variant="caption" style={{ color: RED, fontWeight: '600' }}>
+                  Padam Semua
+                </AppText>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {/* ── Notification list ──────────────────────────────────────────────── */}

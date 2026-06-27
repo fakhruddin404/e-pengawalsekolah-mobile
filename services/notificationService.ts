@@ -97,6 +97,16 @@ export async function markAllNotificationsRead(token: string): Promise<void> {
   );
 }
 
+/**
+ * DELETE /api/pengawal/notifikasi/padam-semua
+ */
+export async function clearAllNotifications(token: string): Promise<void> {
+  await api.delete(
+    'notifikasi/padam-semua',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
+
 // ─── Real-time (Laravel Echo / Reverb) ───────────────────────────────────────
 
 function getPusherConstructor(): PusherCtor {

@@ -16,6 +16,7 @@ import {
   subscribeToPengawalActivity,
   markAllNotificationsRead,
   markNotificationRead,
+  clearAllNotifications,
 } from '../services/notificationService';
 
 type NotificationContextValue = {
@@ -27,6 +28,7 @@ type NotificationContextValue = {
   loadStats: (isRefresh?: boolean) => Promise<void>;
   handleMarkRead: (id: string) => Promise<void>;
   handleMarkAllRead: () => Promise<void>;
+  handleClearAll: () => Promise<void>;
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -142,6 +144,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  const handleClearAll = useCallback(async () => {
+    setNotifications([]);
+    try {
+      await clearAllNotifications(token);
+    } catch {
+      console.warn('[NotificationProvider] clearAll failed');
+    }
+  }, [token]);
+
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
@@ -155,6 +166,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         loadStats,
         handleMarkRead,
         handleMarkAllRead,
+        handleClearAll,
       }}
     >
       {children}
