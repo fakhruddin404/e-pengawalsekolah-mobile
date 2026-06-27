@@ -20,10 +20,17 @@ export default function PasswordManagerScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [newPasswordError, setNewPasswordError] = useState('');
 
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const validatePasswordStrength = (password: string): string => {
+    if (!/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$/.test(password))
+      return 'Kata laluan mesti mengandungi huruf besar, huruf kecil, nombor, dan simbol (cth: @, #, !).';
+    return '';
+  };
 
   const canSubmit = useMemo(() => {
     return (
@@ -40,6 +47,13 @@ export default function PasswordManagerScreen() {
       Alert.alert('Ralat', 'Sesi tamat. Sila log masuk semula.');
       return;
     }
+
+    const strengthError = validatePasswordStrength(newPassword);
+    if (strengthError) {
+      setNewPasswordError(strengthError);
+      return;
+    }
+    setNewPasswordError('');
 
     if (newPassword !== confirmNewPassword) {
       Alert.alert('Ralat', 'Pengesahan kata laluan baharu tidak sepadan.');
@@ -124,10 +138,22 @@ export default function PasswordManagerScreen() {
           <Label text="New Password" />
           <PasswordField
             value={newPassword}
-            onChangeText={setNewPassword}
+            onChangeText={(t) => {
+              setNewPassword(t);
+              if (newPasswordError) setNewPasswordError(validatePasswordStrength(t));
+            }}
             visible={showNew}
             onToggleVisible={() => setShowNew((v) => !v)}
           />
+          {newPasswordError ? (
+            <AppText variant="caption" style={{ color: '#EF4444', marginTop: 4 }}>
+              {newPasswordError}
+            </AppText>
+          ) : (
+            <AppText variant="caption" style={{ color: '#94A3B8', marginTop: 4 }}>
+              Mesti ada huruf besar, huruf kecil, nombor, dan simbol.
+            </AppText>
+          )}
 
           <View className="h-6" />
           <Label text="Confirm New Password" />

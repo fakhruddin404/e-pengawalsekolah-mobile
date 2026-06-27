@@ -11,7 +11,7 @@ import { AppText } from '../components/AppText';
 import { textVariants } from '../theme/typography';
 import { palette, radii, shadows, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { postSendEmailVerification, postUpdateProfile } from '../services';
+import { formatAxiosError, postSendEmailVerification, postUpdateProfile } from '../services';
 import { downloadProfilePhoto } from '../services/profileService';
 
 // Jenis data gambar yang akan dihantar ke server
@@ -137,12 +137,7 @@ export default function ProfileScreen() {
       }
 
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ??
-        error?.response?.data?.error ??
-        error?.message ??
-        'Sesuatu yang tidak kena berlaku.';
-      Alert.alert('Ralat', msg);
+      Alert.alert('Ralat', formatAxiosError(error, 'Sesuatu yang tidak kena berlaku.'));
     } finally {
       setIsUpdating(false);
     }

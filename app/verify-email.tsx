@@ -7,7 +7,7 @@ import { Mail, LogOut, RefreshCw } from 'lucide-react-native';
 import { AppText } from '../components/AppText';
 import { palette, radii, spacing } from '../theme/ui';
 import { useAuth } from '../context/AuthContext';
-import { performLogout, postSendEmailVerification } from '../services';
+import { formatAxiosError, performLogout, postSendEmailVerification } from '../services';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -28,10 +28,7 @@ export default function VerifyEmailScreen() {
       const res = await postSendEmailVerification(session.token);
       Alert.alert('Berjaya', res?.message || 'Pautan pengesahan telah dihantar semula ke email anda.');
     } catch (error: any) {
-      Alert.alert(
-        'Ralat', 
-        error?.response?.data?.message || error?.message || 'Gagal menghantar pautan.'
-      );
+      Alert.alert('Ralat', formatAxiosError(error, 'Gagal menghantar pautan.'));
     } finally {
       setSending(false);
     }

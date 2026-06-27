@@ -25,7 +25,7 @@ import { SelectModalDropdown } from '../../components/SelectModalDropdown';
 import { textVariants } from '../../theme/typography';
 import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
-import { postCreateLaporan } from '../../services';
+import { formatAxiosError, postCreateLaporan } from '../../services';
 
 type KejadianType = 'Kerosakkan' | 'Pencerobohan' | 'Kemalangan' | 'Lain-lain';
 type LatLng = { latitude: number; longitude: number };
@@ -197,7 +197,7 @@ export default function CreateLaporanScreen() {
       setSelectedImage(null);
       router.back();
     } catch (e: any) {
-      Alert.alert('Ralat', e?.message ?? 'Gagal simpan laporan.');
+      Alert.alert('Ralat', formatAxiosError(e, 'Gagal simpan laporan.'));
     } finally {
       setSubmitting(false);
     }

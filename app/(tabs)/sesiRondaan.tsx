@@ -1,4 +1,3 @@
-//test 
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +21,7 @@ import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
 import {
   calculatePatrolStats,
+  formatAxiosError,
   prepareRondaanStartData,
   submitRondaanRecord,
   verifyCheckpointByQr,
@@ -98,8 +98,7 @@ export default function HomeMapScreen() {
         Alert.alert('Ralat', res?.message ?? 'Pengesahan gagal. Anda mungkin terlalu jauh dari titik semak.');
       }
     } catch (error: any) {
-      const msg = error?.message ?? 'Gagal mengesahkan titik semak.';
-      Alert.alert('Ralat', msg);
+      Alert.alert('Ralat', formatAxiosError(error, 'Gagal mengesahkan titik semak.'));
     } finally {
       setTimeout(() => {
         scanLockRef.current = false;
@@ -133,8 +132,7 @@ export default function HomeMapScreen() {
       setUserRoute([]);
       Alert.alert('Mula', 'Data titik semak berjaya dimuat turun.');
     } catch (error: any) {
-      const msg = error?.message ?? 'Gagal mengambil data titik semak dari server.';
-      Alert.alert("Ralat", msg);
+      Alert.alert('Ralat', formatAxiosError(error, 'Gagal mengambil data titik semak dari server.'));
     }
   };
 
@@ -173,8 +171,7 @@ export default function HomeMapScreen() {
               Alert.alert("Ralat", result.message);
             }
           } catch (error: any) {
-            const msg = error?.message ?? 'Gagal simpan rondaan.';
-            Alert.alert('Ralat', msg);
+            Alert.alert('Ralat', formatAxiosError(error, 'Gagal simpan rondaan.'));
           }
         }
       }
@@ -365,7 +362,7 @@ function Fab({
 }) {
   return (
     <Pressable
-      onPress={onPress ?? (() => Alert.alert(label, 'Coming soon'))}
+      onPress={onPress ?? (() => {})}
       className="flex-row items-center gap-2 bg-white"
       style={{
         borderRadius: radii.pill,
