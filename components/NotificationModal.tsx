@@ -179,87 +179,90 @@ function NotifCard({ item, onPress }: NotifCardProps) {
   const IconComp = meta.icon;
 
   return (
-    <Pressable
-      onPress={() => onPress(item.id)}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-        paddingVertical: 12,
-        paddingLeft: spacing.lg,
-        paddingRight: spacing.md,
-        backgroundColor: item.is_read ? '#fff' : '#F0F7FF',
-        opacity: pressed ? 0.85 : 1,
-        borderLeftWidth: item.is_read ? 0 : 3,
-        borderLeftColor: meta.color,
-      })}
-    >
-      {/* Icon chip */}
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 10,
-          backgroundColor: meta.bg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          marginTop: 1,
-        }}
-      >
-        <IconComp size={18} color={meta.color} />
-      </View>
-
-      {/* Content */}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+    <Pressable onPress={() => onPress(item.id)}>
+      {({ pressed }) => (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 12,
+            paddingVertical: 12,
+            paddingLeft: spacing.xl,
+            paddingRight: spacing.md,
+            backgroundColor: item.is_read ? '#fff' : '#F0F7FF',
+            opacity: pressed ? 0.85 : 1,
+            borderLeftWidth: item.is_read ? 0 : 3,
+            borderLeftColor: meta.color,
+          }}
+        >
+          {/* Icon chip */}
           <View
             style={{
-              paddingHorizontal: 7,
-              paddingVertical: 2,
-              borderRadius: 99,
+              width: 38,
+              height: 38,
+              borderRadius: 10,
               backgroundColor: meta.bg,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              marginTop: 1,
             }}
           >
+            <IconComp size={18} color={meta.color} />
+          </View>
+
+          {/* Content */}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <View
+                style={{
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                  borderRadius: 99,
+                  backgroundColor: meta.bg,
+                }}
+              >
+                <AppText
+                  variant="caption"
+                  style={{ color: meta.color, fontWeight: '700', fontSize: 10 }}
+                >
+                  {meta.label}
+                </AppText>
+              </View>
+              {!item.is_read && (
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: BLUE,
+                  }}
+                />
+              )}
+            </View>
+            <AppText
+              variant="bodySm"
+              style={{ fontWeight: item.is_read ? '400' : '700', color: palette.text }}
+              numberOfLines={1}
+            >
+              {item.title}
+            </AppText>
             <AppText
               variant="caption"
-              style={{ color: meta.color, fontWeight: '700', fontSize: 10 }}
+              style={{ color: palette.muted, marginTop: 1 }}
+              numberOfLines={2}
             >
-              {meta.label}
+              {item.message}
+            </AppText>
+            <AppText
+              variant="caption"
+              style={{ color: palette.muted, marginTop: 4, fontSize: 10 }}
+            >
+              {formatRelativeTime(item.occurred_at)}
             </AppText>
           </View>
-          {!item.is_read && (
-            <View
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: BLUE,
-              }}
-            />
-          )}
         </View>
-        <AppText
-          variant="bodySm"
-          style={{ fontWeight: item.is_read ? '400' : '700', color: palette.text }}
-          numberOfLines={1}
-        >
-          {item.title}
-        </AppText>
-        <AppText
-          variant="caption"
-          style={{ color: palette.muted, marginTop: 1 }}
-          numberOfLines={2}
-        >
-          {item.message}
-        </AppText>
-        <AppText
-          variant="caption"
-          style={{ color: palette.muted, marginTop: 4, fontSize: 10 }}
-        >
-          {formatRelativeTime(item.occurred_at)}
-        </AppText>
-      </View>
+      )}
     </Pressable>
   );
 }
@@ -487,9 +490,6 @@ export function NotificationModal({ visible, onClose }: NotificationModalProps) 
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
                 <Trash2 size={14} color={RED} />
-                <AppText variant="caption" style={{ color: RED, fontWeight: '600' }}>
-                  Padam Semua
-                </AppText>
               </Pressable>
             )}
           </View>
