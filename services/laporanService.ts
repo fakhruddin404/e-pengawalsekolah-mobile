@@ -66,10 +66,15 @@ export async function postCreateLaporan(token: string, payload: CreateLaporanPay
         }
       }
 
-      const message =
+      let message =
         (typeof data?.message === 'string' && data.message) ||
         (typeof data?.error === 'string' && data.error) ||
         `HTTP ${response.status}`;
+        
+      if (response.status === 413) {
+        message = 'Saiz fail gambar yang dimuat naik terlalu besar.';
+      }
+
       throw new Error(message);
     }
 
