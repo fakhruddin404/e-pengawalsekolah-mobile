@@ -9,7 +9,7 @@ export const getTitikSemak = async (token: string) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error fetching titik semak:', error);
+    console.error('Ralat semasa mendapatkan titik semak:', error);
     throw error;
   }
 };
@@ -54,8 +54,8 @@ export const postSimpanRondaan = async (
       e?.response?.data?.error ??
       (e?.response?.status ? `HTTP ${e.response.status}` : null) ??
       e?.message ??
-      'Error saving rondaan';
-    console.error('Error saving rondaan:', msg);
+      'Ralat semasa menyimpan rondaan.';
+    console.error('Ralat semasa menyimpan rondaan:', msg);
     throw error;
   }
 };
