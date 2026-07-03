@@ -24,7 +24,6 @@ import {
   getMapViewPadding,
   getMapMarkerKey,
   getMapMarkerTitle,
-  MAP_RECENTER_INTERVAL_MS,
   normalizeMapCoord,
   setRegionToCoords,
   toCoordsFromLocation,
@@ -214,16 +213,7 @@ export default function MapsDashboard({
 
   useEffect(() => {
     if (!coords) return;
-
     recenterCamera(coords, isRondaanActive, titikSemak);
-
-    const intervalId = setInterval(() => {
-      const user = coordsRef.current;
-      if (!user) return;
-      recenterCamera(user, isRondaanActiveRef.current, titikSemakRef.current);
-    }, MAP_RECENTER_INTERVAL_MS);
-
-    return () => clearInterval(intervalId);
   }, [coords, isRondaanActive, titikSemak.length, recenterCamera, titikSemak]);
 
   useEffect(() => {
@@ -321,7 +311,10 @@ export default function MapsDashboard({
 
       {/* ── HUD: Rondaan stats overlay ── */}
       {isRondaanActive && (
-        <View style={[styles.hud, { top: insets.top + 16 }]} pointerEvents="none">
+        <View
+          style={[styles.hud, { top: insets.top + (isIOS ? 4 : 16) }]}
+          pointerEvents="none"
+        >
           <View style={styles.hudItem}>
             <Text style={styles.hudLabel}>⏱ MASA</Text>
             <Text style={styles.hudValue}>{formatElapsed(elapsed)}</Text>
