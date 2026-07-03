@@ -24,6 +24,7 @@ import {
   getMapViewPadding,
   getMapMarkerKey,
   getMapMarkerTitle,
+  MAP_RECENTER_INTERVAL_MS,
   normalizeMapCoord,
   setRegionToCoords,
   toCoordsFromLocation,
@@ -85,9 +86,10 @@ export default function MapsDashboard({
   userRoute = [],
   setUserRoute,
   totalTitik = 0,
-  startTime = null,
+  startTime,
 }: MapsDashboardProps) {
   const insets = useSafeAreaInsets();
+  const baseTopPadding = isIOS ? 4 : 16;
   const mapViewPadding = useMemo(
     () => getMapViewPadding({ top: insets.top, bottom: insets.bottom }),
     [insets.top, insets.bottom]
@@ -146,12 +148,9 @@ export default function MapsDashboard({
         fitPatrolView(user, points);
         return;
       }
-      if (mapRef.current) {
-        const centered = getUserCenteredRegion(user);
-        mapRef.current.animateToRegion(centered, 500);
-      }
+      animateRegionTo(region, user, 500);
     },
-    [fitPatrolView]
+    [fitPatrolView, region]
   );
 
   const handleRecenter = useCallback(() => {
@@ -189,16 +188,9 @@ export default function MapsDashboard({
         setCoords(firstPoint);
         lastCenteredCoordsRef.current = firstPoint;
 
-        // Force center map on initial load based on state
-        setTimeout(() => {
-          if (isRondaanActiveRef.current) {
-            fitPatrolView(firstPoint, titikSemakRef.current, false);
-          } else {
-            if (mapRef.current) {
-              mapRef.current.animateToRegion(getUserCenteredRegion(firstPoint), 0);
-            }
-          }
-        }, 150);
+        if (!isRondaanActiveRef.current) {
+          setRegionToCoords(region, firstPoint);
+        }
 
         subscription = await Location.watchPositionAsync(
           getHighRefreshWatchOptions(),
@@ -219,19 +211,36 @@ export default function MapsDashboard({
     return () => {
       subscription?.remove();
     };
-  }, [setUserRoute, fitPatrolView]);
+  }, [region, setUserRoute]);
 
-  // Handle camera changes ONLY when rondaan state or checkpoint count changes (not every movement)
   useEffect(() => {
-    const user = coordsRef.current;
-    if (!user) return;
-    
+    if (!coords) return;
+
+    recenterCamera(coords, isRondaanActive, titikSemak);
+
+    const intervalId = setInterval(() => {
+      const user = coordsRef.current;
+      if (!user) return;
+      recenterCamera(user, isRondaanActiveRef.current, titikSemakRef.current);
+    }, MAP_RECENTER_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [coords, isRondaanActive, titikSemak.length, recenterCamera, titikSemak]);
+
+  useEffect(() => {
+    if (!isRondaanActive || !coords) return;
+
     const timeoutId = setTimeout(() => {
-      recenterCamera(user, isRondaanActive, titikSemak);
+      fitPatrolView(coords, titikSemak);
     }, 150);
 
     return () => clearTimeout(timeoutId);
-  }, [isRondaanActive, titikSemak.length, recenterCamera, titikSemak]);
+  }, [isRondaanActive, titikSemak.length, coords, fitPatrolView, titikSemak]);
+
+  useEffect(() => {
+    if (isRondaanActive || !coords) return;
+    animateRegionTo(region, coords, 500);
+  }, [isRondaanActive, coords, region]);
 
   if (Platform.OS === 'web')
     return (
@@ -313,10 +322,7 @@ export default function MapsDashboard({
 
       {/* ── HUD: Rondaan stats overlay ── */}
       {isRondaanActive && (
-        <View
-          style={[styles.hud, { top: insets.top + (isIOS ? 4 : 16) }]}
-          pointerEvents="none"
-        >
+        <View style={[styles.hud, { top: insets.top + baseTopPadding }]} pointerEvents="none">
           <View style={styles.hudItem}>
             <Text style={styles.hudLabel}>⏱ MASA</Text>
             <Text style={styles.hudValue}>{formatElapsed(elapsed)}</Text>
@@ -332,7 +338,7 @@ export default function MapsDashboard({
       {/* ── Map type switcher (Standard / Satelit) ── */}
       <Pressable
         onPress={() => setMapType((prev) => (prev === 'standard' ? 'satellite' : 'standard'))}
-        style={[styles.mapTypeBtn, { top: insets.top + (isRondaanActive ? 110 : 16) }]}
+        style={[styles.mapTypeBtn, { top: insets.top + (isRondaanActive ? baseTopPadding + 94 : baseTopPadding) }]}
         accessibilityLabel="Tukar jenis peta"
       >
         <Layers size={16} color="#1e293b" />
@@ -345,7 +351,7 @@ export default function MapsDashboard({
       {isOffCenter && (
         <Pressable
           onPress={handleRecenter}
-          style={[styles.recenterBtn, { top: insets.top + (isRondaanActive ? 110 : 16) + 52 }]}
+          style={[styles.recenterBtn, { top: insets.top + (isRondaanActive ? baseTopPadding + 94 : baseTopPadding) + 52 }]}
           accessibilityLabel="Kembali ke lokasi saya"
         >
           <Crosshair size={20} color="#1F7BFF" />

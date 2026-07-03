@@ -8,7 +8,7 @@ export type MapCoords = { latitude: number; longitude: number };
 export const MAP_REGION_DELTA = 0.005;
 export const MAP_USER_ZOOM_DELTA = 0.0025;   // ~280m radius — zoom lebih dekat (Strava-like)
 export const MAP_CENTER_LAT_OFFSET_RATIO = 0.22;
-export const MAP_RECENTER_INTERVAL_MS = 30_000;
+export const MAP_RECENTER_INTERVAL_MS = 120_000;
 
 export const MAP_FALLBACK_REGION = {
   latitude: 3.139,
