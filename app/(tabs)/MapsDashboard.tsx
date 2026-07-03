@@ -337,7 +337,7 @@ export default function MapsDashboard({
       {/* ── Map type switcher (Standard / Satelit) ── */}
       <Pressable
         onPress={() => setMapType((prev) => (prev === 'standard' ? 'satellite' : 'standard'))}
-        style={[styles.mapTypeBtn, { top: insets.top + (isRondaanActive ? 82 : 16) }]}
+        style={[styles.mapTypeBtn, { top: insets.top + (isRondaanActive ? 110 : 16) }]}
         accessibilityLabel="Tukar jenis peta"
       >
         <Layers size={16} color="#1e293b" />
@@ -350,7 +350,7 @@ export default function MapsDashboard({
       {isOffCenter && (
         <Pressable
           onPress={handleRecenter}
-          style={[styles.recenterBtn, { bottom: insets.bottom + 120 }]}
+          style={[styles.recenterBtn, { top: insets.top + (isRondaanActive ? 110 : 16) + 52 }]}
           accessibilityLabel="Kembali ke lokasi saya"
         >
           <Crosshair size={20} color="#1F7BFF" />
@@ -395,7 +395,8 @@ const styles = StyleSheet.create({
   hud: {
     position: 'absolute',
     left: 16,
-    right: 80,
+    right: 16,
+    alignSelf: 'center',
     flexDirection: 'row',
     backgroundColor: 'rgba(15, 23, 42, 0.82)',
     borderRadius: 14,
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
 
   recenterBtn: {
     position: 'absolute',
-    right: 14,
+    right: 14,  // sebelah kanan, bawah butang Satelit
     width: 44,
     height: 44,
     borderRadius: 22,
