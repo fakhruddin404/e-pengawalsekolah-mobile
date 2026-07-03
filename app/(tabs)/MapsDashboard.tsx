@@ -146,9 +146,12 @@ export default function MapsDashboard({
         fitPatrolView(user, points);
         return;
       }
-      animateRegionTo(region, user, 500);
+      if (mapRef.current) {
+        const centered = getUserCenteredRegion(user);
+        mapRef.current.animateToRegion(centered, 500);
+      }
     },
-    [fitPatrolView, region]
+    [fitPatrolView]
   );
 
   const handleRecenter = useCallback(() => {
@@ -186,9 +189,16 @@ export default function MapsDashboard({
         setCoords(firstPoint);
         lastCenteredCoordsRef.current = firstPoint;
 
-        if (!isRondaanActiveRef.current) {
-          setRegionToCoords(region, firstPoint);
-        }
+        // Force center map on initial load based on state
+        setTimeout(() => {
+          if (isRondaanActiveRef.current) {
+            fitPatrolView(firstPoint, titikSemakRef.current, false);
+          } else {
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(getUserCenteredRegion(firstPoint), 0);
+            }
+          }
+        }, 150);
 
         subscription = await Location.watchPositionAsync(
           getHighRefreshWatchOptions(),
@@ -209,27 +219,19 @@ export default function MapsDashboard({
     return () => {
       subscription?.remove();
     };
-  }, [region, setUserRoute]);
+  }, [setUserRoute, fitPatrolView]);
 
+  // Handle camera changes ONLY when rondaan state or checkpoint count changes (not every movement)
   useEffect(() => {
-    if (!coords) return;
-    recenterCamera(coords, isRondaanActive, titikSemak);
-  }, [coords, isRondaanActive, titikSemak.length, recenterCamera, titikSemak]);
-
-  useEffect(() => {
-    if (!isRondaanActive || !coords) return;
-
+    const user = coordsRef.current;
+    if (!user) return;
+    
     const timeoutId = setTimeout(() => {
-      fitPatrolView(coords, titikSemak);
+      recenterCamera(user, isRondaanActive, titikSemak);
     }, 150);
 
     return () => clearTimeout(timeoutId);
-  }, [isRondaanActive, titikSemak.length, coords, fitPatrolView, titikSemak]);
-
-  useEffect(() => {
-    if (isRondaanActive || !coords) return;
-    animateRegionTo(region, coords, 500);
-  }, [isRondaanActive, coords, region]);
+  }, [isRondaanActive, titikSemak.length, recenterCamera, titikSemak]);
 
   if (Platform.OS === 'web')
     return (
