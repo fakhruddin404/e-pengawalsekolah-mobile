@@ -11,4 +11,4 @@ export * from './sosService';
 export * from './passwordManagerService';
 export * from './forgotPasswordService';
 export * from './logout';
-
+export * from './offlineStorage';

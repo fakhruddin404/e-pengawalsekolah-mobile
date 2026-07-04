@@ -19,13 +19,23 @@ import * as Location from 'expo-location';
 import { AppText } from '../../components/AppText';
 import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
+import NetInfo from '@react-native-community/netinfo';
 import {
   calculatePatrolStats,
   formatAxiosError,
   prepareRondaanStartData,
-  submitRondaanRecord,
-  verifyCheckpointByQr,
+  verifyCheckpointLocally,
+  syncScanQueue,
+  submitRondaanWithFallback,
   type RondaanMapPoint,
+  cacheTitikSemak,
+  getCachedTitikSemak,
+  addToScanQueue,
+  getScanQueue,
+  clearScanQueue,
+  getPendingRondaan,
+  clearPendingRondaan,
+  hasPendingSync,
 } from '../../services';
 
 const MapsDashboard = lazy(() => import('./MapsDashboard'));
@@ -46,6 +56,48 @@ export default function HomeMapScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const { session } = useAuth();
   const scanLockRef = useRef(false);
+
+  const [cachedTitik, setCachedTitik] = useState<RondaanMapPoint[]>([]);
+  const [pendingSync, setPendingSync] = useState(false);
+
+  // Check for pending sync on mount
+  useEffect(() => {
+    (async () => {
+      const hasPending = await hasPendingSync();
+      setPendingSync(hasPending);
+    })();
+  }, []);
+
+  // Auto-sync listener when internet returns
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected && pendingSync) {
+        // Attempt to sync pending rondaan when connection is back
+        syncPendingRondaanNow();
+      }
+    });
+    return () => unsubscribe();
+  }, [pendingSync, session?.token]);
+
+  const syncPendingRondaanNow = async () => {
+    if (!session?.token) return;
+    try {
+      const pendingData = await getPendingRondaan();
+      if (!pendingData) {
+        setPendingSync(false);
+        return;
+      }
+      
+      const { ok, pending, message } = await submitRondaanWithFallback(session.token, pendingData.payload);
+      if (ok) {
+        await clearPendingRondaan();
+        setPendingSync(false);
+        Alert.alert('Berjaya Disegerak', 'Rekod rondaan tertunggak telah berjaya dihantar ke server.');
+      }
+    } catch (e) {
+      console.log('Auto-sync failed, will retry later:', e);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -79,26 +131,32 @@ export default function HomeMapScreen() {
         accuracy: Location.Accuracy.Highest,
       });
 
-      const verify = await verifyCheckpointByQr(
-        session.token,
-        data, {
+      const result = await verifyCheckpointLocally(
+        data,
+        {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        },
+        cachedTitik
+      );
+
+      // Simpan ke scan queue
+      await addToScanQueue({
+        fld_loc_id: result.fld_loc_id,
+        qr_code: result.qr_code,
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
+        scanned_at: Math.floor(Date.now() / 1000),
       });
-      const res = verify.response;
 
-      // jawapan dari API
-      if (res?.success === true) {
-        setTitikSemak((prev) =>
-          //remove the titik semak from the list
-          (Array.isArray(prev) ? prev : []).filter((p) => p.id.toString() !== verify.fld_loc_id.toString())
-        );
-        Alert.alert('Berjaya', res?.message ?? 'Titik semak disahkan.');
-      } else {
-        Alert.alert('Ralat', res?.message ?? 'Pengesahan gagal. Anda mungkin terlalu jauh dari titik semak.');
-      }
+      // Remove the titik semak from the list
+      setTitikSemak((prev) =>
+        (Array.isArray(prev) ? prev : []).filter((p) => p.id.toString() !== result.fld_loc_id.toString())
+      );
+      
+      Alert.alert('Berjaya', 'Titik semak disahkan secara tempatan.');
     } catch (error: any) {
-      Alert.alert('Ralat', formatAxiosError(error, 'Gagal mengesahkan titik semak.'));
+      Alert.alert('Ralat', error.message ?? 'Gagal mengesahkan titik semak.');
     } finally {
       setTimeout(() => {
         scanLockRef.current = false;
@@ -114,64 +172,105 @@ export default function HomeMapScreen() {
         return;
       }
 
-      const normalized = await prepareRondaanStartData(session.token);
-      if (normalized.length === 0) {
-        Alert.alert('Ralat', 'Data titik semak diterima tetapi tiada koordinat sah untuk dipaparkan.');
-        return;
+      let dataToUse: RondaanMapPoint[] = [];
+
+      try {
+        const normalized = await prepareRondaanStartData(session.token);
+        if (normalized.length === 0) {
+          throw new Error('Tiada koordinat sah untuk dipaparkan.');
+        }
+        await cacheTitikSemak(normalized);
+        dataToUse = normalized;
+      } catch (e: any) {
+        // Fallback to cache
+        const cached = await getCachedTitikSemak();
+        if (cached && cached.length > 0) {
+          dataToUse = cached;
+          Alert.alert('Mod Luar Talian', 'Gagal memuat turun data baru. Menggunakan data titik semak tersimpan.');
+        } else {
+          Alert.alert('Ralat', 'Tiada sambungan internet dan tiada data tersimpan. Sila pastikan anda mempunyai capaian internet untuk memulakan rondaan kali pertama.');
+          return;
+        }
       }
 
-      // Save the titik semak data to the state
-      setTitikSemak(normalized);
-      // Save the total number of titik semak
-      setTotalTitik(normalized.length);
-      // Save the start time of the rondaan
+      setCachedTitik(dataToUse);
+      setTitikSemak(dataToUse);
+      setTotalTitik(dataToUse.length);
       setStartTime(Math.floor(Date.now() / 1000));
-      // Set the rondaan as active
       setIsRondaanActive(true);
-      // Reset the user route
       setUserRoute([]);
-      Alert.alert('Mula', 'Data titik semak berjaya dimuat turun.');
+      
+      // Clear sebarang scan queue yang mungkin tersangkut dari sesi lepas
+      await clearScanQueue();
     } catch (error: any) {
-      Alert.alert('Ralat', formatAxiosError(error, 'Gagal mengambil data titik semak dari server.'));
+      Alert.alert('Ralat', error.message ?? 'Gagal memulakan rondaan.');
     }
   };
 
   // Function to end the rondaan
   const onTamatRondaan = async () => {
-    // If there are no titik semak, return
     if (totalTitik === 0 || startTime === null) return;
     if (!session?.token) {
       Alert.alert('Ralat', 'Sesi anda telah tamat. Sila log masuk semula.');
       return;
     }
 
-    const { peratus, durasi } = calculatePatrolStats(
-      totalTitik,
-      titikSemak.length,
-      startTime
-    );
-
-    Alert.alert("Tamat Rondaan", `Selesaikan ${peratus}% rondaan?`, [
+    // Tanya pengguna dahulu
+    Alert.alert("Tamat Rondaan", `Tamatkan sesi rondaan ini?`, [
       { text: "Batal", style: "cancel" },
       {
-        text: "Simpan",
+        text: "Tamat",
         onPress: async () => {
           try {
-            const result = await submitRondaanRecord(session.token, {
+            // 1. Dapatkan scan queue dan cuba sync
+            const queue = await getScanQueue();
+            const { synced, rejected } = await syncScanQueue(session.token, queue);
+            
+            // 2. Hitung statistik
+            // Kita hanya ambil kira titik yang berjaya di-sync ke server sebagai 'completed'
+            // Walau bagaimanapun, titikSemak.length mewakili titik yang belum discan secara lokal
+            // Jadi peratusan yang tepat adalah berdasarkan 'synced.length'
+            const peratus = totalTitik > 0 ? Math.round((synced.length / totalTitik) * 100) : 0;
+            const endTime = Math.floor(Date.now() / 1000);
+            const totalSeconds = endTime - startTime;
+            const hrs = Math.floor(totalSeconds / 3600);
+            const mins = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+            const durasi = [hrs, mins, secs].map((v) => (v < 10 ? '0' + v : v)).join(':');
+
+            // 3. Submit rondaan dengan fallback (simpan lokal jika gagal)
+            const payload = {
               path: userRoute,
-              peratus: peratus,
+              peratus,
               durasi,
-            });
+            };
+
+            const result = await submitRondaanWithFallback(session.token, payload);
+            
             if (result.ok) {
+              await clearScanQueue();
               setIsRondaanActive(false);
               setTitikSemak([]);
               setUserRoute([]);
               Alert.alert("Selesai", result.message);
+            } else if (result.pending) {
+              setPendingSync(true);
+              // Kita tak clearScanQueue jika submit rondaan pending, 
+              // biarkan dalam queue supaya boleh di sync kemudian jika internet pulih.
+              // Atau kita clear je scan queue sebab kalau submit rondaan dah simpan locally,
+              // ia dah 'completed' dari segi rondaan. 
+              // Tapi untuk simplicity, kita clear je scan queue, tapi payload peratus 
+              // dah disimpan.
+              await clearScanQueue();
+              setIsRondaanActive(false);
+              setTitikSemak([]);
+              setUserRoute([]);
+              Alert.alert("Mod Luar Talian", result.message);
             } else {
               Alert.alert("Ralat", result.message);
             }
           } catch (error: any) {
-            Alert.alert('Ralat', formatAxiosError(error, 'Gagal simpan rondaan.'));
+            Alert.alert('Ralat', error.message ?? 'Gagal simpan rondaan.');
           }
         }
       }
@@ -259,6 +358,14 @@ export default function HomeMapScreen() {
           className="absolute right-4"
           style={{ bottom: fabBottom }}
         >
+          {pendingSync && !isRondaanActive && (
+            <View className="mb-3 rounded-full bg-orange-100 px-3 py-1.5 border border-orange-300">
+              <AppText variant="caption" className="text-orange-800 text-center font-bold">
+                🔄 Menunggu Sambungan...
+              </AppText>
+            </View>
+          )}
+
           {!isRondaanActive ? (
             <Fab
               label="MULA"

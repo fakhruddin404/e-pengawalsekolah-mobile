@@ -1,4 +1,9 @@
 import { api, formatAxiosError } from './apiClient';
+import { 
+  type OfflineScanEntry, 
+  savePendingRondaan, 
+  getScanQueue 
+} from './offlineStorage';
 
 export const getTitikSemak = async (token: string) => {
   try {
@@ -124,21 +129,74 @@ export function validateQrPayload(rawData: string): { fld_loc_id: string | numbe
   return { fld_loc_id, qr_code: qr_code.trim() };
 }
 
-export async function verifyCheckpointByQr(
-  token: string,
+// Calculate distance using Haversine formula (in meters)
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const earthRadius = 6371000.0;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(earthRadius * c);
+}
+
+export async function verifyCheckpointLocally(
   rawData: string,
-  coords: { latitude: number; longitude: number }
-): Promise<VerifyCheckpointByQrResult> {
+  coords: { latitude: number; longitude: number },
+  cachedTitikSemak: RondaanMapPoint[]
+): Promise<{ fld_loc_id: string | number; qr_code: string; distanceM: number }> {
   const { fld_loc_id, qr_code } = validateQrPayload(rawData);
-  const response = await postSahkanTitik(
-    token, 
-    {
-    fld_loc_id,
-    qr_code,
-    latitude: coords.latitude,
-    longitude: coords.longitude,
-  });
-  return { fld_loc_id, qr_code, response };
+
+  // Cari titik semak dalam cache lokal
+  const checkpoint = cachedTitikSemak.find(p => p.id.toString() === fld_loc_id.toString());
+  
+  if (!checkpoint) {
+    throw new Error('Titik semak tidak dijumpai dalam senarai rondaan anda.');
+  }
+
+  // Semak jarak GPS (<= 10 meter)
+  const distanceM = haversineMeters(
+    coords.latitude,
+    coords.longitude,
+    checkpoint.latitude,
+    checkpoint.longitude
+  );
+
+  if (distanceM > 10) {
+    throw new Error(`Anda berada di luar kawasan titik semak (${distanceM}m). Maksimum dibenarkan ialah 10m.`);
+  }
+
+  return { fld_loc_id, qr_code, distanceM };
+}
+
+export async function syncScanQueue(
+  token: string,
+  queue: OfflineScanEntry[]
+): Promise<{ synced: OfflineScanEntry[]; rejected: OfflineScanEntry[] }> {
+  const synced: OfflineScanEntry[] = [];
+  const rejected: OfflineScanEntry[] = [];
+
+  for (const entry of queue) {
+    try {
+      const response = await postSahkanTitik(token, {
+        fld_loc_id: entry.fld_loc_id,
+        qr_code: entry.qr_code,
+        latitude: entry.latitude,
+        longitude: entry.longitude,
+      });
+
+      if (response?.success) {
+        synced.push(entry);
+      } else {
+        rejected.push(entry);
+      }
+    } catch (e) {
+      // Jika error network/server down, kita anggap gagal sync kali ini
+      rejected.push(entry);
+    }
+  }
+
+  return { synced, rejected };
 }
 
 // just normalize takut any error
@@ -158,26 +216,37 @@ export async function prepareRondaanStartData(token: string): Promise<RondaanMap
   return normalized;
 }
 
-export async function submitRondaanRecord(
+export async function submitRondaanWithFallback(
   token: string,
   payload: { path: any[]; peratus: number; durasi: string }
-): Promise<SubmitRondaanRecordResult> {
+): Promise<{ ok: boolean; pending: boolean; message: string }> {
   try {
-    const response = await postSimpanRondaan(
-      token,
-      payload
-      );
+    const response = await postSimpanRondaan(token, payload);
     const ok =
       response?.success === true ||
       response?.status === 'success' ||
       response?.status === true;
-    return {
-      ok,
-      response,
-      message: ok ? 'Rekod rondaan telah dihantar ke sistem.' : response?.message ?? 'Gagal simpan rondaan.',
-    };
-  } catch (e: any) {
-    throw new Error(formatAxiosError(e, 'Gagal simpan rondaan.'));
+      
+    if (ok) {
+      return { ok: true, pending: false, message: 'Rekod rondaan telah dihantar ke sistem.' };
+    }
+    
+    // Jika API pulang success = false tapi tak throw error, kita assume fail
+    throw new Error(response?.message ?? 'Gagal simpan rondaan.');
+  } catch (error: any) {
+    // Check if network error
+    if (!error.response) {
+      // Network error, simpan secara lokal
+      await savePendingRondaan(token, payload);
+      return { 
+        ok: false, 
+        pending: true, 
+        message: 'Tiada sambungan internet. Rekod disimpan secara lokal dan akan dihantar apabila talian pulih.' 
+      };
+    }
+    
+    // API error (misalnya 4xx atau 5xx dari server)
+    throw new Error(formatAxiosError(error, 'Gagal simpan rondaan.'));
   }
 }
 
