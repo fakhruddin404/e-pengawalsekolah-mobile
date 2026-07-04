@@ -197,6 +197,8 @@ export default function HomeMapScreen() {
               titikSemak={titikSemak}
               userRoute={userRoute}
               setUserRoute={setUserRoute}
+              totalTitik={totalTitik}
+              startTime={startTime}
             />
           </Suspense>
         </View>
