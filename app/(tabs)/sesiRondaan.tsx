@@ -172,38 +172,37 @@ export default function HomeMapScreen() {
         return;
       }
 
-      let dataToUse: RondaanMapPoint[] = [];
-
-      try {
-        const normalized = await prepareRondaanStartData(session.token);
-        if (normalized.length === 0) {
-          throw new Error('Tiada koordinat sah untuk dipaparkan.');
-        }
-        await cacheTitikSemak(normalized);
-        dataToUse = normalized;
-      } catch (e: any) {
-        // Fallback to cache
-        const cached = await getCachedTitikSemak();
-        if (cached && cached.length > 0) {
-          dataToUse = cached;
-          Alert.alert('Mod Luar Talian', 'Gagal memuat turun data baru. Menggunakan data titik semak tersimpan.');
-        } else {
-          Alert.alert('Ralat', 'Tiada sambungan internet dan tiada data tersimpan. Sila pastikan anda mempunyai capaian internet untuk memulakan rondaan kali pertama.');
-          return;
-        }
+      // Pastikan ada internet sebelum benarkan mula rondaan
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        Alert.alert(
+          'Tiada Sambungan Internet',
+          'Sambungan internet diperlukan untuk memulakan rondaan bagi mendapatkan data titik semak terkini dari pelayan.'
+        );
+        return;
       }
 
-      setCachedTitik(dataToUse);
-      setTitikSemak(dataToUse);
-      setTotalTitik(dataToUse.length);
+      // Dapatkan data titik semak dari server (wajib online)
+      const normalized = await prepareRondaanStartData(session.token);
+      if (normalized.length === 0) {
+        Alert.alert('Ralat', 'Data titik semak diterima tetapi tiada koordinat sah untuk dipaparkan.');
+        return;
+      }
+
+      // Cache data untuk kegunaan semasa rondaan (jika tiada internet ketika imbas QR)
+      await cacheTitikSemak(normalized);
+
+      setCachedTitik(normalized);
+      setTitikSemak(normalized);
+      setTotalTitik(normalized.length);
       setStartTime(Math.floor(Date.now() / 1000));
       setIsRondaanActive(true);
       setUserRoute([]);
-      
+
       // Clear sebarang scan queue yang mungkin tersangkut dari sesi lepas
       await clearScanQueue();
     } catch (error: any) {
-      Alert.alert('Ralat', error.message ?? 'Gagal memulakan rondaan.');
+      Alert.alert('Ralat', error.message ?? 'Gagal memulakan rondaan. Pastikan anda mempunyai sambungan internet.');
     }
   };
 
