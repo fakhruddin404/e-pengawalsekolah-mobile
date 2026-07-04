@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { type RondaanMapPoint } from './rondaanService';
 
 export type OfflineScanEntry = {
