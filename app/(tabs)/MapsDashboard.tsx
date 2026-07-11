@@ -7,6 +7,7 @@ import { Crosshair, Layers } from 'lucide-react-native';
 
 import { AppText } from '../../components/AppText';
 import {
+  animateMapTo,
   animateRegionTo,
   createAnimatedMapRegion,
   fitMapToCoords,
@@ -73,6 +74,11 @@ export default function MapsDashboard({
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
   const [isOffCenter, setIsOffCenter] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  // Ref digunakan supaya callbacks dalam watchPositionAsync dan useEffect
+  // sentiasa baca nilai terkini tanpa perlu re-subscribe.
+  const isOffCenterRef = useRef(false);
+  // Jejak sama ada kamera baru sahaja dipindahkan secara programatik (bukan oleh user)
+  const isProgrammaticMoveRef = useRef(false);
 
   const verifiedCount = totalTitik - titikSemak.length;
 
@@ -85,9 +91,11 @@ export default function MapsDashboard({
   coordsRef.current = coords;
   titikSemakRef.current = titikSemak;
   mapEdgePaddingRef.current = mapEdgePadding;
+  isOffCenterRef.current = isOffCenter;
 
   const fitPatrolView = useCallback(
     (user: MapCoords, points: any[], animated = true) => {
+      isProgrammaticMoveRef.current = true;
       const fitCoords = getCoordsForFit(user, points);
       if (fitCoords.length > 1) {
         fitMapToCoords(mapRef.current, fitCoords, animated, mapEdgePaddingRef.current);
@@ -100,13 +108,19 @@ export default function MapsDashboard({
 
   const recenterCamera = useCallback(
     (user: MapCoords, patrolActive: boolean, points: any[]) => {
+      // Tandakan sebagai programatik supaya onRegionChangeComplete tidak
+      // salah anggap ini sebagai user pan.
+      isProgrammaticMoveRef.current = true;
       if (patrolActive) {
         fitPatrolView(user, points);
         return;
       }
-      animateRegionTo(region, user, 500);
+      // Luar sesi rondaan: gunakan native animateToRegion (mapRef) bukan
+      // AnimatedRegion.timing(). Pada iOS, AnimatedRegion tidak dapat override
+      // kamera selepas user pan — native API sentiasa berfungsi.
+      animateMapTo(mapRef.current, user, 400);
     },
-    [fitPatrolView, region]
+    [fitPatrolView]
   );
 
   useEffect(() => {
@@ -164,6 +178,23 @@ export default function MapsDashboard({
   }, [startTime, isRondaanActive]);
 
   const handlePanDrag = () => {
+    // onPanDrag: reliable pada iOS, tapi pada Android kadang-kadang tidak dicetuskan
+    // semasa pinch-to-zoom. Gunakan bersama onRegionChangeComplete.
+    if (!isProgrammaticMoveRef.current) {
+      setIsOffCenter(true);
+    }
+  };
+
+  // onRegionChangeComplete: lebih reliable pada Android — dicetuskan selepas
+  // SETIAP pergerakan peta selesai (termasuk pinch/zoom oleh user).
+  const handleRegionChangeComplete = () => {
+    if (isProgrammaticMoveRef.current) {
+      // Pergerakan ini adalah dari kod (fitPatrolView/animateRegionTo), bukan user.
+      // Reset flag dan jangan anggap sebagai user pan.
+      isProgrammaticMoveRef.current = false;
+      return;
+    }
+    // Pergerakan ini adalah dari user — tandakan off-center.
     setIsOffCenter(true);
   };
 
@@ -174,18 +205,38 @@ export default function MapsDashboard({
     }
   };
 
+  // Auto-fit ketika rondaan mula sahaja (isRondaanActive berubah jadi true),
+  // atau apabila bilangan titikSemak berubah (titik disahkan) — BUKAN setiap GPS update.
+  // isOffCenter tidak digunakan di sini supaya fit awal sentiasa berlaku.
+  const prevRondaanActiveRef = useRef(false);
+  const prevTitikSemakLenRef = useRef(titikSemak.length);
   useEffect(() => {
+    const rondaanJustStarted = isRondaanActive && !prevRondaanActiveRef.current;
+    const checkpointVerified =
+      isRondaanActive &&
+      titikSemak.length !== prevTitikSemakLenRef.current;
+
+    prevRondaanActiveRef.current = isRondaanActive;
+    prevTitikSemakLenRef.current = titikSemak.length;
+
     if (!isRondaanActive || !coords) return;
 
-    const timeoutId = setTimeout(() => {
-      fitPatrolView(coords, titikSemak);
-    }, 150);
-
-    return () => clearTimeout(timeoutId);
+    if (rondaanJustStarted || checkpointVerified) {
+      // Fit semua titik semak + lokasi user apabila rondaan mula atau checkpoint disahkan.
+      // Reset isOffCenter supaya butang recenter hilang.
+      setIsOffCenter(false);
+      const timeoutId = setTimeout(() => {
+        fitPatrolView(coords, titikSemak);
+      }, 150);
+      return () => clearTimeout(timeoutId);
+    }
+    // Jika user sudah pan (isOffCenter), JANGAN auto-recenter pada setiap GPS update.
   }, [isRondaanActive, titikSemak.length, coords, fitPatrolView, titikSemak]);
 
   useEffect(() => {
     if (isRondaanActive || !coords) return;
+    // Semasa bukan rondaan: auto-follow hanya jika user belum pan.
+    if (isOffCenterRef.current) return;
     animateRegionTo(region, coords, 500);
   }, [isRondaanActive, coords, region]);
 
@@ -220,6 +271,7 @@ export default function MapsDashboard({
         showsPointsOfInterest={false}
         mapType={mapType}
         onPanDrag={handlePanDrag}
+        onRegionChangeComplete={handleRegionChangeComplete}
         {...(isIOS && iosLegalLabelInsets
           ? { legalLabelInsets: iosLegalLabelInsets }
           : {})}

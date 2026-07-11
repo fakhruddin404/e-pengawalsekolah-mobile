@@ -111,6 +111,22 @@ export function animateRegionTo(
     .start();
 }
 
+/**
+ * Gerakkan kamera peta terus melalui native API (mapRef.animateToRegion).
+ * Lebih reliable berbanding AnimatedRegion.timing() untuk user-triggered recenter
+ * pada iOS — Apple Maps akan selalu terima arahan ini walaupun user telah pan.
+ */
+export function animateMapTo(
+  mapRef: MapView | null,
+  next: MapCoords,
+  duration = 400,
+  delta: number = MAP_USER_ZOOM_DELTA
+) {
+  if (!mapRef) return;
+  const centered = getUserCenteredRegion(next, delta);
+  mapRef.animateToRegion(centered, duration);
+}
+
 export function setRegionToCoords(
   region: AnimatedRegion,
   coords: MapCoords,
