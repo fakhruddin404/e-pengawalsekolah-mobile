@@ -250,17 +250,12 @@ export default function MapsDashboard({
           const coord = normalizeMapCoord(point);
           if (!coord) return null;
           // verified true jika tiada dalam titikSemak (telah dibuang), tapi titikSemak ini adalah yg belum verified.
-          // Tapi point boleh disemak melalui field status jika di back-end ada flag, 
           // Ataupun titikSemak list ni hanya yg belum verified. Saya akan jadikan merah (pending).
           return (
-            <Marker
+            <CheckpointMarker
               key={getMapMarkerKey(point, coord, idx)}
               coordinate={coord}
-              anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={false}
-            >
-              <View style={[styles.dotMarker, { backgroundColor: '#ea580c' }]} />
-            </Marker>
+            />
           );
         })}
       </AnimatedMapView>
@@ -311,6 +306,28 @@ export default function MapsDashboard({
         </View>
       )}
     </View>
+  );
+}
+
+// ── CheckpointMarker ──────────────────────────────────────────────────────────
+// Pada Android, `tracksViewChanges={false}` yang ditetapkan dari awal menyebabkan
+// Android mengambil snapshot marker sebelum custom View sempat dirender — hasilnya
+// marker kelihatan kosong. Penyelesaian: mulakan dengan `true`, kemudian tukar ke
+// `false` selepas komponen berjaya dirender (onLayout).
+function CheckpointMarker({ coordinate }: { coordinate: MapCoords }) {
+  const [ready, setReady] = useState(false);
+
+  return (
+    <Marker
+      coordinate={coordinate}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={!ready}
+    >
+      <View
+        style={[styles.dotMarker, { backgroundColor: '#ea580c' }]}
+        onLayout={() => setReady(true)}
+      />
+    </Marker>
   );
 }
 
