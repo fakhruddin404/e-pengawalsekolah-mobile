@@ -185,16 +185,23 @@ export default function MapsDashboard({
     }
   };
 
-  // onRegionChangeComplete: lebih reliable pada Android — dicetuskan selepas
-  // SETIAP pergerakan peta selesai (termasuk pinch/zoom oleh user).
-  const handleRegionChangeComplete = () => {
+  // onRegionChangeComplete: dicetuskan selepas SETIAP pergerakan peta selesai.
+  // Android: reliable untuk kesan user pan (termasuk pinch-to-zoom).
+  // iOS: TERLALU sensitif \u2014 dicetuskan juga oleh perubahan AnimatedRegion prop
+  //       dan scroll deceleration. Di luar rondaan pada iOS, kita bergantung
+  //       pada onPanDrag sahaja (yang cukup reliable pada iOS).
+  const handleRegionChangeComplete = () =\u003e {
     if (isProgrammaticMoveRef.current) {
-      // Pergerakan ini adalah dari kod (fitPatrolView/animateRegionTo), bukan user.
-      // Reset flag dan jangan anggap sebagai user pan.
+      // Pergerakan ini adalah dari kod, bukan user. Reset flag.
       isProgrammaticMoveRef.current = false;
       return;
     }
-    // Pergerakan ini adalah dari user — tandakan off-center.
+
+    // Pada iOS di luar sesi rondaan: abaikan \u2014 onPanDrag sudah mengendalikannya.
+    // Ini elak false-positive daripada AnimatedRegion prop changes.
+    if (isIOS && !isRondaanActiveRef.current) return;
+
+    // Android (semua kes) + iOS semasa rondaan: anggap sebagai user pan.
     setIsOffCenter(true);
   };
 
@@ -233,12 +240,19 @@ export default function MapsDashboard({
     // Jika user sudah pan (isOffCenter), JANGAN auto-recenter pada setiap GPS update.
   }, [isRondaanActive, titikSemak.length, coords, fitPatrolView, titikSemak]);
 
-  useEffect(() => {
-    if (isRondaanActive || !coords) return;
-    // Semasa bukan rondaan: auto-follow hanya jika user belum pan.
-    if (isOffCenterRef.current) return;
-    animateRegionTo(region, coords, 500);
-  }, [isRondaanActive, coords, region]);
+  // Auto-follow luar rondaan DIBUANG dengan sengaja.
+  //
+  // Masalah: animateRegionTo (AnimatedRegion.timing) mencetuskan
+  // onRegionChangeComplete pada iOS. Kerana isProgrammaticMoveRef tidak
+  // ditetapkan sebelum panggilan ini, handleRegionChangeComplete salah anggap
+  // ia sebagai user pan dan set isOffCenter = true \u2014 menyebabkan kitaran tak
+  // berpenghujung: auto-follow \u2192 onRegionChangeComplete \u2192 isOffCenter=true \u2192
+  // auto-follow terhenti \u2192 user tekan recenter \u2192 isOffCenter=false \u2192 ulang.
+  //
+  // Penyelesaian: Posisi awal peta sudah ditetapkan melalui setRegionToCoords
+  // apabila GPS pertama diterima. Luar rondaan, peta kekal di mana ia berada.
+  // Butang recenter (animateMapTo \u2192 native API) mengendalikan navigasi semula
+  // ke lokasi user secara eksplisit tanpa mencetuskan rantaian masalah ini.
 
   if (Platform.OS === 'web')
     return (
