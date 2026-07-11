@@ -187,17 +187,17 @@ export default function MapsDashboard({
 
   // onRegionChangeComplete: dicetuskan selepas SETIAP pergerakan peta selesai.
   // Android: reliable untuk kesan user pan (termasuk pinch-to-zoom).
-  // iOS: TERLALU sensitif \u2014 dicetuskan juga oleh perubahan AnimatedRegion prop
+  // iOS: TERLALU sensitif — dicetuskan juga oleh perubahan AnimatedRegion prop
   //       dan scroll deceleration. Di luar rondaan pada iOS, kita bergantung
   //       pada onPanDrag sahaja (yang cukup reliable pada iOS).
-  const handleRegionChangeComplete = () =\u003e {
+  const handleRegionChangeComplete = () => {
     if (isProgrammaticMoveRef.current) {
       // Pergerakan ini adalah dari kod, bukan user. Reset flag.
       isProgrammaticMoveRef.current = false;
       return;
     }
 
-    // Pada iOS di luar sesi rondaan: abaikan \u2014 onPanDrag sudah mengendalikannya.
+    // Pada iOS di luar sesi rondaan: abaikan — onPanDrag sudah mengendalikannya.
     // Ini elak false-positive daripada AnimatedRegion prop changes.
     if (isIOS && !isRondaanActiveRef.current) return;
 
