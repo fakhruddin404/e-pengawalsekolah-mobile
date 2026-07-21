@@ -27,11 +27,11 @@ import { palette, radii, shadows, spacing } from '../../theme/ui';
 import { useAuth } from '../../context/AuthContext';
 import { formatAxiosError, postCreateLaporan } from '../../services';
 
-type KejadianType = 'Kerosakkan' | 'Pencerobohan' | 'Kemalangan' | 'Lain-lain';
+type KejadianType = 'Kerosakan' | 'Pencerobohan' | 'Kemalangan' | 'Lain-lain';
 type LatLng = { latitude: number; longitude: number };
 
 const KEJADIAN_OPTIONS: KejadianType[] = [
-  'Kerosakkan',
+  'Kerosakan',
   'Pencerobohan',
   'Kemalangan',
   'Lain-lain',
@@ -97,7 +97,7 @@ export default function CreateLaporanScreen() {
   const { session } = useAuth();
   const isIOS = Platform.OS === 'ios';
   const token = session?.token ?? '';
-  const [kejadian, setKejadian] = useState<KejadianType>('Kerosakkan');
+  const [kejadian, setKejadian] = useState<KejadianType>('Kerosakan');
   const [keterangan, setKeterangan] = useState('');
   const [selectedDateTime, setSelectedDateTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -189,7 +189,7 @@ export default function CreateLaporanScreen() {
         imej: selectedImage,
       });
       Alert.alert('Berjaya', 'Laporan berjaya dihantar.');
-      setKejadian('Kerosakkan');
+      setKejadian('Kerosakan');
       setKeterangan('');
       setSelectedDateTime(new Date());
       setSelectedLocation(null);
