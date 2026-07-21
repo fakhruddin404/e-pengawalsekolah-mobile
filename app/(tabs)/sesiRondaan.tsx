@@ -337,7 +337,7 @@ export default function HomeMapScreen() {
                         Alert.alert('Berjaya', 'Isyarat SOS berjaya dihantar. Bantuan sedang dimaklumkan.', [
                           {
                             text: 'OK',
-                            onPress: () => Linking.openURL('tel:0139524123'),
+                            onPress: () => Linking.openURL('tel:999'),
                           },
                         ]);
                       } catch (error: any) {

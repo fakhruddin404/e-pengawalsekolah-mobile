@@ -599,6 +599,8 @@ export default function CreateLaporanScreen() {
                 mode={activePicker}
                 display="spinner"
                 is24Hour={activePicker === 'time'}
+                textColor="#000000"
+                themeVariant="light"
                 onChange={(event: any, value?: Date) => {
                   if (event.type === 'dismissed' || !value) return;
                   setDraftDateTime((prev) => {
